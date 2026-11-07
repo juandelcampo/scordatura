@@ -1,0 +1,136 @@
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  margin: 10px 0;
+}
+.field,
+.textField {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.field select,
+.field input:not([type='range']),
+.textField input {
+  min-height: var(--touch);
+  max-width: 100%;
+  padding: 6px 8px;
+  border: var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: none;
+}
+.field input[type='range'] {
+  width: 150px;
+  max-width: 100%;
+  height: var(--touch);
+  margin: 0;
+  accent-color: var(--accent);
+}
+.textField input {
+  width: min(100%, 420px);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.draw {
+  display: block;
+  width: 100%;
+  height: 130px;
+  margin-top: 6px;
+  border: var(--rule);
+  background: repeating-linear-gradient(to bottom, var(--soft) 0 1px, transparent 1px 20%);
+  cursor: crosshair;
+  /* Se dibuja con el dedo sin desplazar la página. */
+  touch-action: none;
+}
+.hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.rule {
+  margin-top: 8px;
+  max-width: 76ch;
+  color: var(--muted);
+  font-size: 13px;
+}
+.rule strong {
+  color: var(--ink);
+}
+.consigna {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: var(--rule);
+  font-size: 14px;
+}
+.subtitle {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.names {
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.tensions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: var(--rule);
+  border-left: var(--rule);
+  list-style: none;
+}
+.tensions li {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-right: var(--rule);
+  border-bottom: var(--rule);
+  font-size: 13px;
+}
+.tensions strong {
+  font: 900 26px/1 var(--heavy);
+}
+.tensions em {
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.tensions li[data-kind='reposo'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tensions li[data-kind='choque'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.speech {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(26px, 1fr));
+  margin-top: 10px;
+  border-top: var(--rule);
+  border-left: var(--rule);
+}
+.speech span {
+  height: 40px;
+  border-right: var(--rule);
+  border-bottom: var(--rule);
+}
+.speech span[data-on='true'] {
+  background: var(--ink);
+}

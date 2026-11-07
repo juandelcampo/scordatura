@@ -1,0 +1,82 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+}
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.entry {
+  padding: 10px 0;
+  border-top: 1px solid var(--ink);
+}
+.entryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.entryHead h3 {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.audio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.audio audio {
+  width: min(100%, 360px);
+  max-width: 100%;
+  height: var(--touch);
+}
+.download {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-small);
+  font-size: 13px;
+  font-weight: 700;
+}
+.conditions {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.conditions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-small);
+  color: var(--ink);
+  font-weight: 700;
+}
+.note {
+  display: grid;
+  gap: 3px;
+  margin-top: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.note textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: var(--rule);
+  background: var(--paper);
+  font-size: 16px;
+  text-transform: none;
+}
+.empty,
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+.hint {
+  margin-top: 10px;
+}

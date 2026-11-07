@@ -1,0 +1,62 @@
+.scope {
+  display: block;
+  width: 100%;
+  height: clamp(90px, 12cqi, 130px);
+  border: var(--rule);
+  background: var(--neck);
+  color: var(--accent);
+}
+.voices {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 12px;
+}
+.hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.tuningNote {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  margin-bottom: 12px;
+}
+.field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.field select {
+  min-height: var(--touch);
+  min-width: 150px;
+  padding: 6px 8px;
+  border: var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.field input[type='range'] {
+  width: 170px;
+  max-width: 100%;
+  height: var(--touch);
+  margin: 0;
+  accent-color: var(--accent);
+}

@@ -1,0 +1,42 @@
+.grid {
+  display: grid;
+  gap: 8px;
+}
+.lane {
+  --min: 26px;
+  display: grid;
+  /* Con muchas casillas, en pantallas chicas pasan a varias filas sin desbordar. */
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--min), 100%), 1fr));
+  border-top: var(--rule);
+  border-left: var(--rule);
+}
+@container main (min-width: 480px) {
+  .lane {
+    grid-template-columns: repeat(var(--cells), minmax(0, 1fr));
+  }
+}
+.cell {
+  display: block;
+  height: 56px;
+  border-right: var(--rule);
+  border-bottom: var(--rule);
+  background: var(--paper);
+}
+.grid[data-compact='true'] .cell {
+  height: 28px;
+}
+.cell[data-level='rest'] {
+  background: repeating-linear-gradient(135deg, var(--soft) 0 4px, var(--paper) 4px 8px);
+}
+.cell[data-level='0'] {
+  background: linear-gradient(to top, var(--ink) 25%, var(--paper) 25%);
+}
+.cell[data-level='1'] {
+  background: linear-gradient(to top, var(--ink) 60%, var(--paper) 60%);
+}
+.cell[data-level='2'] {
+  background: var(--ink);
+}
+.cell[data-active] {
+  background: var(--accent);
+}

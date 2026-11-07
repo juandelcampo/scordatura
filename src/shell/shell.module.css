@@ -1,0 +1,337 @@
+/* Celular y tablet primero: barra superior y menú a pantalla completa.
+   A partir de 900px, barra lateral fija y colapsable. */
+.shell {
+  min-height: 100dvh;
+}
+
+.noScroll {
+  overflow: hidden;
+}
+
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: 52px;
+  padding-top: env(safe-area-inset-top);
+  border-bottom: var(--rule);
+  background: var(--paper);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--gutter);
+  font: 900 20px/1 var(--heavy);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.menuButton {
+  min-width: 88px;
+  padding: 0 14px;
+  border: 0;
+  border-left: var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+  font: 900 15px/1 var(--heavy);
+  text-transform: uppercase;
+}
+
+.nav {
+  position: fixed;
+  inset: calc(52px + env(safe-area-inset-top)) 0 0 0;
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--paper);
+}
+.nav[data-open='true'] {
+  display: flex;
+}
+.railHead {
+  display: none;
+}
+
+.navList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px var(--gutter);
+  border-bottom: 1px solid var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.navItem:hover {
+  background: var(--soft);
+}
+.navItem[aria-current='page'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.navNumber {
+  font-size: 12px;
+  font-weight: 400;
+}
+.navSettings {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding: var(--gutter);
+}
+.navSettings > div {
+  display: flex;
+  width: 100%;
+}
+.navSettings output {
+  flex: 1;
+}
+.navSettings label input {
+  width: 100%;
+}
+
+.column {
+  min-width: 0;
+}
+
+.riskBar {
+  padding: 2px var(--gutter);
+  border-bottom: var(--rule);
+}
+.riskPicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  max-width: 560px;
+}
+.axisLabel {
+  flex: none;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.riskPicker input {
+  flex: 1 1 140px;
+  min-width: 0;
+  height: var(--touch);
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.main {
+  container: main / inline-size;
+  min-width: 0;
+}
+
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--paper);
+}
+/* Compacta: en un celular cada fila mide lo justo, para no comerse la pantalla. */
+.dockRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px var(--gutter);
+  border-top: var(--rule);
+  background: var(--soft);
+  accent-color: var(--accent);
+}
+.dockRow[data-running='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  /* El fader, en el color del texto: el acento no se vería sobre el mismo acento. */
+  accent-color: var(--on-accent);
+}
+.dockRow[data-running='true'] button {
+  border-color: var(--on-accent);
+}
+.dockMiddle {
+  min-width: 0;
+}
+.dockLabel {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    transition: grid-template-columns 120ms linear;
+  }
+  .shell[data-collapsed='true'] {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .topBar {
+    display: none;
+  }
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: auto;
+    display: flex;
+    height: 100dvh;
+    overflow-x: hidden;
+    border-right: var(--rule);
+  }
+  .railHead {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    min-height: 48px;
+    border-bottom: var(--rule);
+  }
+  .railBrand {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 var(--gutter);
+    font: 900 18px/1 var(--heavy);
+    letter-spacing: -0.03em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+  .railBrandShort {
+    display: none;
+  }
+  .collapse {
+    flex: none;
+    width: 44px;
+    border: 0;
+    border-left: var(--rule);
+    background: none;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .collapse:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .navItem {
+    min-height: 40px;
+    font-size: 14px;
+  }
+  .navSettings {
+    padding: 10px;
+  }
+  .navSettings output {
+    min-width: 0;
+    font-size: 12px;
+  }
+
+  /* Colapsada: solo los números, y el botón para volver a abrirla. */
+  .shell[data-collapsed='true'] .railHead {
+    flex-direction: column;
+  }
+  .shell[data-collapsed='true'] .railBrand {
+    justify-content: center;
+    min-height: 44px;
+    padding: 0;
+  }
+  .shell[data-collapsed='true'] .railBrandFull,
+  .shell[data-collapsed='true'] .navLabel,
+  .shell[data-collapsed='true'] .navSettings {
+    display: none;
+  }
+  .shell[data-collapsed='true'] .railBrandShort {
+    display: inline;
+  }
+  .shell[data-collapsed='true'] .collapse {
+    width: 100%;
+    min-height: 44px;
+    border-top: var(--rule);
+    border-left: 0;
+  }
+  .shell[data-collapsed='true'] .navItem {
+    justify-content: center;
+    padding: 6px 0;
+  }
+  .shell[data-collapsed='true'] .navNumber {
+    font-size: 14px;
+    font-weight: 700;
+  }
+}
+
+/* Celular apaisado: poca altura, así que la barra superior no queda pegada. */
+@media (max-height: 480px) and (max-width: 899px) {
+  .topBar {
+    position: static;
+  }
+  .nav {
+    inset: 0;
+    z-index: 40;
+    padding-top: 52px;
+  }
+  .navList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .menuButton {
+    position: relative;
+    z-index: 50;
+  }
+}
+
+@media (min-width: 620px) {
+  .dockMiddle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(100px, 220px);
+    align-items: center;
+    gap: 12px;
+  }
+}
+
+/* El Estudio entra entero en la pantalla: no se desplaza la página, cada panel maneja lo suyo.
+   Con muy poca altura (celular apaisado) no hay lugar, y vuelve a desplazarse como las demás. */
+@media (min-height: 481px) {
+  .shell[data-fit='true'] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .shell[data-fit='true'] .column {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .shell[data-fit='true'] .main {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+@media (min-height: 481px) and (min-width: 900px) {
+  .shell[data-fit='true'] {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+/* Pantalla baja: el riesgo solo importa al sortear, y esa altura hace falta para trabajar. */
+@media (max-height: 640px) {
+  .shell[data-fit='true'] .riskBar {
+    display: none;
+  }
+}

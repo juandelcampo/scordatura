@@ -1,0 +1,185 @@
+.hero {
+  padding: clamp(28px, 7cqi, 72px) var(--gutter);
+  border-bottom: var(--rule);
+}
+.hero h1 {
+  max-width: 14ch;
+  font: 900 clamp(46px, 11cqi, 132px)/0.92 var(--heavy);
+  text-wrap: balance;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+.lead {
+  max-width: 54ch;
+  margin-top: 20px;
+  font-size: clamp(16px, 2.2cqi, 21px);
+  line-height: 1.45;
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 60px;
+  margin-top: 24px;
+  padding: 10px 26px;
+  border: var(--rule);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 900 clamp(19px, 3cqi, 26px)/1.1 var(--heavy);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.cta:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.block {
+  padding: clamp(22px, 4cqi, 40px) var(--gutter);
+  border-bottom: var(--rule);
+}
+.block h2 {
+  margin-bottom: 16px;
+  font: 900 clamp(26px, 5.5cqi, 54px)/1 var(--heavy);
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.note {
+  margin: -8px 0 16px;
+  color: var(--muted);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  border: var(--rule);
+  list-style: none;
+  counter-reset: paso;
+}
+.steps li {
+  min-width: 0;
+  padding: 14px;
+  border-top: var(--rule);
+  counter-increment: paso;
+}
+.steps li:first-child {
+  border-top: 0;
+}
+.steps li::before {
+  content: counter(paso);
+  display: block;
+  font: 900 44px/1 var(--heavy);
+}
+.steps strong {
+  display: block;
+  margin: 6px 0 4px;
+  font-size: 17px;
+}
+
+.example {
+  margin-top: 16px;
+  border: var(--rule);
+}
+.exampleTitle {
+  padding: 6px 12px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.example dl > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--ink);
+}
+.example dt {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.example dd {
+  font-weight: 700;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  border-top: var(--rule);
+  border-left: var(--rule);
+  list-style: none;
+}
+.tools li {
+  min-width: 0;
+  border-right: var(--rule);
+  border-bottom: var(--rule);
+}
+.tools a {
+  display: grid;
+  gap: 4px;
+  height: 100%;
+  padding: 14px;
+  text-decoration: none;
+}
+.tools a:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tools small {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.tools strong {
+  font: 900 26px/1.05 var(--heavy);
+  letter-spacing: -0.02em;
+}
+.tools span {
+  font-size: 14px;
+}
+
+.principles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 18px 24px;
+}
+.principles dt {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.principles dd {
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.closing {
+  padding: clamp(28px, 6cqi, 60px) var(--gutter);
+}
+.closing p {
+  max-width: 24ch;
+  font: 900 clamp(24px, 5cqi, 44px)/1.08 var(--heavy);
+  letter-spacing: -0.02em;
+}
+
+/* Son nueve herramientas: de a tres no queda ninguna suelta. */
+@container main (min-width: 620px) {
+  .tools {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container main (min-width: 760px) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .steps li {
+    border-top: 0;
+    border-left: var(--rule);
+  }
+  .steps li:first-child {
+    border-left: 0;
+  }
+}

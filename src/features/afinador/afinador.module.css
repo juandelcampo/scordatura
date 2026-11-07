@@ -1,0 +1,635 @@
+/* Se adapta al ancho de `main`, no al de la pantalla: la barra lateral también cuenta. */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.content {
+  min-width: 0;
+}
+
+/* Lista de afinaciones: desplegable en pantallas chicas, panel fijo en las grandes. */
+.catalog {
+  min-width: 0;
+  border-bottom: var(--rule);
+}
+.catalogToggle {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px var(--gutter);
+  border: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font: 900 15px/1.2 var(--heavy);
+  text-align: left;
+  text-transform: uppercase;
+}
+.catalogBody {
+  display: none;
+}
+.catalog[data-open='true'] .catalogBody {
+  display: block;
+}
+.catalog[data-open='true'] .catalogList {
+  max-height: 60dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.search {
+  display: block;
+  border-bottom: var(--rule);
+}
+.search input {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 8px var(--gutter);
+  border: 0;
+  background: var(--paper);
+  /* 16px evita que iOS acerque el zoom al escribir. */
+  font-size: 16px;
+}
+.search input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.groupTitle {
+  padding: 6px var(--gutter);
+  background: var(--ink);
+  color: var(--paper);
+  font: 900 12px/1.3 var(--heavy);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tuningItem {
+  display: block;
+  min-height: var(--touch);
+  padding: 7px var(--gutter);
+  border-bottom: 1px solid var(--ink);
+  text-decoration: none;
+}
+.tuningItem:hover {
+  background: var(--soft);
+}
+.tuningItem[aria-current='page'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tuningItem strong {
+  display: block;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.tuningItem small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.empty {
+  padding: 12px var(--gutter);
+  color: var(--muted);
+}
+
+@container main (min-width: 820px) {
+  .page {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .content {
+    border-left: var(--rule);
+  }
+  .catalog {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    border-bottom: 0;
+  }
+  .catalogToggle {
+    display: none;
+  }
+  .catalogBody,
+  .catalog[data-open='true'] .catalogBody {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .catalogList,
+  .catalog[data-open='true'] .catalogList {
+    flex: 1;
+    max-height: none;
+    overflow-y: auto;
+  }
+}
+
+/* Datos de la afinación */
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 16px;
+  border: var(--rule);
+}
+.facts > div {
+  min-width: 0;
+  padding: 8px 12px;
+  border-top: var(--rule);
+}
+.facts > div:first-child {
+  border-top: 0;
+}
+.facts dt {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.facts dd {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+@container main (min-width: 560px) {
+  .facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .facts > div {
+    border-top: 0;
+    border-left: var(--rule);
+  }
+  .facts > div:first-child {
+    border-left: 0;
+  }
+}
+.warning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 700;
+}
+.warning::before {
+  content: 'OJO → ';
+  color: var(--accent);
+}
+.heroActions {
+  margin-top: 12px;
+}
+
+/* Cuerdas */
+.pills {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border: var(--rule);
+}
+.pillWrap {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  border-left: var(--rule);
+}
+.pillWrap:first-child {
+  border-left: 0;
+}
+.pill {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: var(--paper);
+  line-height: 1.2;
+}
+.pill:hover {
+  background: var(--soft);
+}
+.pill[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.pill[data-tuned='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.pillNumber,
+.pillDelta {
+  font-size: 12px;
+}
+.pillDelta[data-far='true'] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.pillNote {
+  font: 900 clamp(15px, 7cqi, 46px)/1.1 var(--heavy);
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+.pillNote sub {
+  font: 400 0.42em var(--mono);
+  letter-spacing: 0;
+  vertical-align: baseline;
+}
+/* Apilados en pantallas angostas: uno al lado del otro no entran con el ancho de un dedo. */
+.pillSteppers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: var(--rule);
+}
+@container main (min-width: 560px) {
+  .pillSteppers {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.pillSteppers button {
+  min-height: var(--touch-small);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 700;
+}
+.pillSteppers button + button {
+  border-top: 1px solid var(--ink);
+}
+@container main (min-width: 560px) {
+  .pillSteppers button + button {
+    border-top: 0;
+    border-left: 1px solid var(--ink);
+  }
+}
+.pillSteppers button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Medidor */
+.meter {
+  margin-top: 14px;
+}
+.meterReadout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.meterActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+}
+.meterNote {
+  font: 900 clamp(48px, 9cqi, 80px)/0.95 var(--heavy);
+  letter-spacing: -0.03em;
+}
+.meterNote sub {
+  font: 400 0.3em var(--mono);
+  letter-spacing: 0;
+  vertical-align: baseline;
+}
+.meterCents {
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+}
+.meterScale {
+  position: relative;
+  height: 62px;
+  margin-top: 12px;
+}
+.meterScale::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 18px;
+  border: var(--rule);
+  background: repeating-linear-gradient(to right, var(--ink) 0 1px, transparent 1px 10%);
+}
+.meterZone {
+  position: absolute;
+  top: 0;
+  bottom: 18px;
+  left: 46%;
+  width: 8%;
+  background: var(--accent);
+}
+.meterNeedle {
+  position: absolute;
+  top: -6px;
+  bottom: 12px;
+  width: 8px;
+  margin-left: -4px;
+  background: var(--ink);
+  outline: 2px solid var(--paper);
+  transition: left 90ms linear;
+}
+.meter[data-state='idle'] .meterNeedle {
+  opacity: 0.25;
+}
+.meterLabels {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 1;
+}
+.meterStatus {
+  min-height: 30px;
+  margin-top: 8px;
+  font: 900 22px/1.2 var(--heavy);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+.meter[data-state='idle'] .meterStatus {
+  color: var(--muted);
+  font: 400 14px/1.5 var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.meter[data-state='ok'] .meterStatus {
+  padding: 2px 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Mástil */
+.neck {
+  position: relative;
+  overflow: hidden;
+  border: var(--rule);
+  background: var(--neck);
+  touch-action: pan-y;
+}
+.neckCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.neckGrid {
+  --visible: 7;
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px repeat(var(--visible), minmax(0, 1fr)) clamp(56px, 20cqi, 200px);
+  color: var(--neck-ink);
+}
+.neckLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--touch);
+  padding: 0;
+  border: 0;
+  border-right: 5px solid var(--neck-ink);
+  background: var(--neck);
+  color: var(--neck-ink);
+  font: 700 13px/1 var(--mono);
+}
+.neckLabel:hover {
+  background: var(--accent);
+  color: #000000;
+}
+.fret {
+  position: relative;
+  height: var(--touch);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-right: 2px solid var(--neck-line);
+  background: transparent;
+  color: #000000;
+  font: 700 12px/1 var(--mono);
+}
+.fret:hover::after {
+  content: '';
+  position: absolute;
+  inset: 9px 20%;
+  background: var(--neck-line);
+}
+.fret[aria-pressed='true']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(30px, 90%);
+  aspect-ratio: 1;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
+}
+.fret span {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+.strumZone {
+  grid-row: 1 / span 6;
+  grid-column: -2 / -1;
+  background: var(--neck-soft);
+  border-left: 2px solid var(--neck-ink);
+  cursor: grab;
+  /* En esta zona el dedo rasguea en vez de desplazar la página. */
+  touch-action: none;
+}
+.strumZone:active {
+  cursor: grabbing;
+}
+.fretNumber {
+  height: 24px;
+  overflow: hidden;
+  border-top: 2px solid var(--neck-ink);
+  background: var(--neck);
+  color: var(--neck-ink);
+  font: 12px/22px var(--mono);
+  text-align: center;
+}
+/* En pantallas angostas se muestran menos trastes, pero más anchos para el dedo. */
+@container main (max-width: 480px) {
+  .neckGrid {
+    --visible: 5;
+  }
+  .fret[data-position='6'],
+  .fret[data-position='7'],
+  .fretNumber[data-position='6'],
+  .fretNumber[data-position='7'] {
+    display: none;
+  }
+}
+@container main (min-width: 640px) {
+  .neckGrid {
+    grid-template-columns: 56px repeat(var(--visible), minmax(0, 1fr)) clamp(56px, 20cqi, 200px);
+  }
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-top: 14px;
+}
+.controls > button:first-child {
+  flex: 1 0 100%;
+}
+@container main (min-width: 520px) {
+  .controls > button:first-child {
+    flex: none;
+  }
+}
+.field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.field select {
+  min-height: var(--touch);
+  min-width: 150px;
+  max-width: 100%;
+  padding: 6px 8px;
+  border: var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  /* 16px evita que iOS acerque el zoom al elegir. */
+  font-size: 16px;
+  font-weight: 700;
+}
+.field input[type='range'] {
+  width: 150px;
+  max-width: 100%;
+  height: var(--touch);
+  margin: 0;
+  accent-color: var(--accent);
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  accent-color: var(--accent);
+}
+.check input {
+  width: 22px;
+  height: 22px;
+}
+.hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Temas: dato secundario */
+.heardTitle {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.heard ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.heard li {
+  border-top: 1px solid var(--ink);
+}
+.heardRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 6px 0;
+}
+.heardText {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.heardText span {
+  color: var(--muted);
+}
+.heardActions {
+  display: flex;
+  gap: 6px;
+}
+.video {
+  width: min(100%, 560px);
+  aspect-ratio: 16 / 9;
+  margin: 2px 0 10px;
+  border: var(--rule);
+  background: #000000;
+}
+.video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.sources {
+  padding: var(--gutter);
+  font-size: 13px;
+}
+.sources summary {
+  min-height: var(--touch-small);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.sources p {
+  max-width: 70ch;
+  margin-top: 8px;
+}
+.sources ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.shapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+.shapes button {
+  display: grid;
+  gap: 2px;
+  min-height: var(--touch);
+  min-width: 0;
+  padding: 6px 8px;
+  border: 2px solid var(--ink);
+  background: none;
+  text-align: left;
+}
+.shapes button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.shapes strong {
+  font: 900 18px/1.1 var(--heavy);
+  overflow-wrap: anywhere;
+}
+.shapes small {
+  font-size: 12px;
+}
+
+.droneLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-small);
+  font-size: 13px;
+  font-weight: 700;
+}

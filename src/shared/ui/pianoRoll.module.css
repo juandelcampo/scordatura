@@ -1,0 +1,22 @@
+.roll {
+  position: relative;
+  height: 140px;
+  margin: 8px 0 4px;
+  overflow: hidden;
+  border: var(--rule);
+  background: repeating-linear-gradient(to right, var(--soft) 0 1px, transparent 1px 12.5%);
+}
+.roll[data-compact='true'] {
+  height: 72px;
+}
+.note {
+  position: absolute;
+  min-height: 6px;
+  background: var(--ink);
+  outline: 1px solid var(--paper);
+}
+.empty {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}

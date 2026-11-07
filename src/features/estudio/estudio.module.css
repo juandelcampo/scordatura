@@ -1,0 +1,595 @@
+/* Una sola pantalla: transporte, pistas y editores. Lo único que se desplaza son los paneles,
+   y las pistas a lo ancho si la forma tiene muchos bloques. */
+.studio {
+  --head: 112px;
+  --block-min: 44px;
+  --row: 42px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  min-width: 0;
+}
+
+/* --- Transporte --- */
+.transport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: var(--rule);
+}
+.play,
+.toggle {
+  min-height: var(--touch-small);
+  padding: 2px 12px;
+  border: var(--rule);
+  background: none;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.play {
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 900 15px/1 var(--heavy);
+}
+.play[data-running='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.toggle:hover {
+  background: var(--soft);
+}
+.toggle[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tempo {
+  display: inline-flex;
+  align-items: stretch;
+  border: 2px solid var(--ink);
+}
+.tempo button {
+  width: 36px;
+  min-height: var(--touch-small);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+.tempo button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tempo output {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tempo small {
+  display: none;
+  font-size: 10px;
+  font-weight: 400;
+}
+.readout {
+  display: none;
+  align-self: center;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.source {
+  display: none;
+  align-self: center;
+  margin-left: auto;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: var(--touch-small);
+  white-space: nowrap;
+}
+
+/* --- Pistas --- */
+.tracks {
+  overflow-x: auto;
+  border-bottom: var(--rule);
+}
+.grid {
+  position: relative;
+  display: grid;
+  grid-auto-rows: var(--row);
+  width: 100%;
+}
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  display: none;
+  width: 3px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.head {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  border-right: var(--rule);
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+.headName {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.headName:hover {
+  background: var(--soft);
+}
+.headName[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.laneButton {
+  flex: none;
+  width: 30px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--ink);
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+.laneButton[data-kind='solo'] {
+  display: none;
+}
+.laneButton:hover {
+  background: var(--soft);
+}
+.laneButton[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.headFader {
+  display: none;
+  align-self: center;
+  flex: 0 1 84px;
+  min-width: 0;
+  padding: 0 6px;
+  accent-color: var(--accent);
+}
+
+.block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-right: 2px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  font: 900 18px/1 var(--heavy);
+  cursor: grab;
+  /* Se arrastran con el dedo sin desplazar la pantalla. */
+  touch-action: none;
+  user-select: none;
+}
+.block small {
+  font: 400 11px/1 var(--mono);
+}
+/* Un fondo distinto por letra, en blanco, negro y gris. */
+.block[data-letter='A'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.block[data-letter='B'] {
+  background: var(--soft);
+}
+.block[data-letter='C'] {
+  background: repeating-linear-gradient(135deg, var(--soft) 0 6px, var(--paper) 6px 12px);
+}
+.block[data-letter='D'] {
+  background: repeating-linear-gradient(90deg, var(--soft) 0 6px, var(--paper) 6px 12px);
+}
+.block[aria-pressed='true'] {
+  outline: 4px solid var(--accent);
+  outline-offset: -4px;
+}
+.block[data-now] {
+  box-shadow: inset 0 -6px 0 var(--accent);
+}
+.cell {
+  min-width: 0;
+  padding: 0 4px;
+  overflow: hidden;
+  border: 0;
+  border-right: 2px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  background: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+.cell:hover {
+  background: var(--soft);
+}
+.cell[data-selected='true'] {
+  background: var(--soft);
+}
+.cell[data-lane-off='true'] {
+  opacity: 0.35;
+}
+.cell[data-drone='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.cell[data-drone='false'] {
+  color: var(--muted);
+}
+.cell[data-drone='true'][data-selected='true'] {
+  box-shadow: inset 0 -5px 0 var(--accent);
+}
+.chords {
+  display: flex;
+  overflow: hidden;
+  gap: 4px;
+  white-space: nowrap;
+}
+.chords > span {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.clip {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preview {
+  display: block;
+  width: 100%;
+  height: 28px;
+  fill: currentColor;
+}
+
+/* --- Editores --- En pantalla angosta se ve uno: el de la pista que se tocó. */
+.panels {
+  min-height: 0;
+  overflow: hidden;
+}
+.stack {
+  display: contents;
+}
+.panel,
+.formBar {
+  display: none;
+  height: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.panel[data-open='true'] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.formBar[data-open='true'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  gap: 6px;
+}
+.formTitle {
+  font: 900 15px/1.1 var(--heavy);
+  text-transform: uppercase;
+}
+.formTitle small {
+  font: 400 12px/1 var(--mono);
+  text-transform: none;
+}
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.panelHead h2 {
+  font: 900 14px/1.1 var(--heavy);
+  text-transform: uppercase;
+}
+.origin {
+  display: block;
+  color: var(--muted);
+  font: 400 10px/1.2 var(--mono);
+  text-transform: none;
+}
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.more {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-small);
+  padding: 0 4px;
+  font-size: 12px;
+}
+.inlineField select {
+  min-height: var(--touch-small);
+  max-width: 100%;
+  padding: 0 4px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.clamp {
+  display: -webkit-box;
+  flex: none;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.warn {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Batería */
+.drumGrid {
+  display: grid;
+  gap: 2px;
+}
+.drumRow {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+.drumName {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.drumSteps {
+  display: grid;
+  grid-template-columns: repeat(var(--narrow), minmax(0, 1fr));
+  gap: 2px;
+  min-width: 0;
+}
+.step {
+  min-width: 0;
+  min-height: var(--touch-small);
+  padding: 0;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+}
+.step[data-beat='true'] {
+  background: var(--soft);
+}
+.step[aria-pressed='true'] {
+  background: var(--ink);
+}
+.step[data-now] {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+.step[aria-pressed='true'][data-now] {
+  background: var(--accent);
+}
+
+/* Acordes */
+.chordInput input {
+  width: 100%;
+  min-height: var(--touch-small);
+  padding: 2px 6px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  font-size: 16px;
+  font-weight: 700;
+}
+.chordInput input[aria-invalid='true'] {
+  border-color: var(--accent);
+}
+.chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 4px;
+}
+.chips button {
+  display: grid;
+  gap: 0;
+  min-height: var(--touch-small);
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  background: none;
+  line-height: 1.15;
+  text-align: left;
+}
+.chips button:hover {
+  background: var(--soft);
+}
+.chips strong {
+  font-size: 13px;
+}
+.chips strong small {
+  margin-left: 4px;
+  font-weight: 400;
+}
+.chips small {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Drone */
+.droneName {
+  font-size: 12px;
+  font-weight: 700;
+}
+.droneControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.droneControls .tempo {
+  justify-content: space-between;
+}
+.droneControls .inlineField select {
+  width: 100%;
+}
+
+/* Letra */
+.lyric {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 64px;
+}
+.lyric textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 64px;
+  padding: 6px;
+  resize: none;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  font-size: 16px;
+  line-height: 1.35;
+}
+.roll figure {
+  height: 44px;
+  margin: 0;
+}
+
+/* Con lugar para la grilla en una fila, la batería pasa a tener el nombre al costado. */
+@container main (min-width: 600px) {
+  .studio {
+    --head: 170px;
+  }
+  .tempo small {
+    display: inline;
+  }
+  .readout {
+    display: inline;
+  }
+  .laneButton[data-kind='solo'] {
+    display: block;
+  }
+  .headName {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+  .drumRow {
+    grid-template-columns: 60px minmax(0, 1fr);
+    align-items: center;
+    gap: 4px;
+  }
+  .drumSteps {
+    grid-template-columns: repeat(var(--wide), minmax(0, 1fr));
+  }
+}
+@container main (min-width: 760px) {
+  .source {
+    display: inline;
+  }
+}
+
+/* Con ancho de sobra, todos los editores a la vista a la vez: es lo que hace al Estudio. */
+@container main (min-width: 1000px) {
+  .studio {
+    --head: 250px;
+  }
+  .headFader {
+    display: block;
+  }
+  .panels {
+    display: grid;
+    grid-template-columns: minmax(596px, 1.5fr) minmax(200px, 1fr) minmax(200px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+  }
+  .formBar,
+  .formBar[data-open='true'] {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 6px;
+    height: auto;
+    overflow: visible;
+    border-bottom: var(--rule);
+  }
+  .panel,
+  .panel[data-open='true'] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stack {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-left: var(--rule);
+  }
+  .stack .panel {
+    height: auto;
+  }
+  .stack .panel[data-panel='acordes'],
+  .stack .panel[data-panel='letra'] {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .stack .panel[data-panel='drone'],
+  .stack .panel[data-panel='melodia'] {
+    flex: 0 0 auto;
+    border-top: var(--rule);
+  }
+}
+
+/* Con muy poca altura no hay altura fija: la página se desplaza como las demás. */
+@media (max-height: 480px) {
+  .studio {
+    height: auto;
+  }
+  .panels,
+  .panel,
+  .formBar {
+    height: auto;
+    overflow: visible;
+  }
+}

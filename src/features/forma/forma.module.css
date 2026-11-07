@@ -1,0 +1,166 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+}
+.block {
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  min-height: 64px;
+  padding: 4px;
+  border: var(--rule);
+  background: var(--paper);
+  font: 900 26px/1 var(--heavy);
+  cursor: grab;
+  /* Se arrastran con el dedo sin desplazar la página. */
+  touch-action: none;
+  user-select: none;
+}
+.block small {
+  font: 400 11px/1.2 var(--mono);
+}
+/* Un fondo distinto por letra, en blanco, negro y gris. */
+.block[data-letter='A'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.block[data-letter='B'] {
+  background: var(--soft);
+}
+.block[data-letter='C'] {
+  background: repeating-linear-gradient(135deg, var(--soft) 0 6px, var(--paper) 6px 12px);
+}
+.block[data-letter='D'] {
+  background: repeating-linear-gradient(90deg, var(--soft) 0 6px, var(--paper) 6px 12px);
+}
+.block[data-active='true'] {
+  outline: 5px solid var(--accent);
+  outline-offset: -5px;
+}
+.block[aria-pressed='true'] {
+  box-shadow: 0 8px 0 var(--accent);
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.buttons .block {
+  min-width: 56px;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: var(--rule);
+}
+.facts > div {
+  min-width: 0;
+  padding: 8px 12px;
+  border-top: var(--rule);
+}
+.facts > div:first-child {
+  border-top: 0;
+}
+.facts dt {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.facts dd {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.facts a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-small);
+}
+@container main (min-width: 640px) {
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .facts > div:nth-child(2) {
+    border-top: 0;
+  }
+  .facts > div:nth-child(even) {
+    border-left: var(--rule);
+  }
+}
+.record {
+  margin-top: 12px;
+}
+.examples {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.examples li {
+  border-top: 1px solid var(--ink);
+}
+/* Una lista larga de filas cortas: con lugar, va de a dos en vez de dejar vacío el medio. */
+@container main (min-width: 1000px) {
+  .examples {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 32px;
+  }
+}
+.exampleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 8px 0;
+}
+.exampleText {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 14px;
+}
+.exampleText span {
+  color: var(--muted);
+}
+.exampleForm {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.exampleRule {
+  color: var(--muted);
+  font-size: 13px;
+}
+.exampleActions {
+  display: flex;
+  gap: 6px;
+}
+.player {
+  padding-bottom: 12px;
+}
+.video {
+  width: min(100%, 560px);
+  aspect-ratio: 16 / 9;
+  border: var(--rule);
+  background: #000000;
+}
+.video > div,
+.video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}

@@ -1,0 +1,178 @@
+.field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: var(--rule);
+  background: var(--paper);
+  /* 16px evita que iOS acerque el zoom al escribir. */
+  font-size: 16px;
+  text-transform: none;
+}
+.field input,
+.field select {
+  min-height: var(--touch);
+  width: 170px;
+  max-width: 100%;
+  padding: 6px 8px;
+  border: var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: none;
+}
+.field input[type='number'] {
+  width: 90px;
+}
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  margin-top: 10px;
+}
+.hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.hint:empty {
+  display: none;
+}
+.lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lines li {
+  display: grid;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--ink);
+}
+.lines li[data-off='true'] {
+  box-shadow: inset 6px 0 0 var(--accent);
+  padding-left: 12px;
+}
+.lineText {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.lineMeta {
+  color: var(--muted);
+  font-size: 13px;
+}
+.lineMeta strong {
+  color: var(--ink);
+}
+.prosody {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.prosodyLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.prosodyLine span {
+  padding: 4px 6px;
+  border: 1px solid var(--muted);
+  font-size: 14px;
+}
+.prosodyLine span[data-strong='true'] {
+  border: 3px solid var(--ink);
+}
+.prosodyLine span[data-stressed='true'] {
+  font-weight: 700;
+}
+.prosodyLine span[data-clash='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.submit {
+  min-height: var(--touch);
+  padding: 6px 16px;
+  border: var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.material {
+  border: var(--rule);
+}
+.material > div {
+  padding: 8px 12px;
+  border-top: var(--rule);
+}
+.material > div:first-child {
+  border-top: 0;
+}
+.material dt {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.material dd {
+  font: 900 clamp(18px, 3.4cqi, 26px)/1.2 var(--heavy);
+  overflow-wrap: anywhere;
+}
+.material .why {
+  margin-top: 2px;
+  color: var(--muted);
+  font: 400 13px/1.4 var(--mono);
+}
+.pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.pieces button {
+  min-height: var(--touch-small);
+  padding: 4px 10px;
+  border: 2px solid var(--ink);
+  background: none;
+  text-align: left;
+}
+.pieces button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.subtitle {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.rescued {
+  margin: 4px 0 8px;
+  font-weight: 700;
+}
+.clock {
+  margin: 8px 0;
+  font: 900 clamp(56px, 16cqi, 120px)/1 var(--heavy);
+  font-variant-numeric: tabular-nums;
+}
+.consigna {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: var(--rule);
+  font-weight: 700;
+}
