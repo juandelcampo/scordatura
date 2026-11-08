@@ -2,8 +2,11 @@ import { index, layout, route, type RouteConfig } from '@react-router/dev/routes
 
 export default [
   layout('shell/AppShell.tsx', [
-    index('features/inicio/InicioRoute.tsx'),
-    route('consigna', 'features/consigna/ConsignaRoute.tsx'),
+    // La consigna es la entrada. /consigna sigue andando: hay links compartidos que apuntan ahí.
+    index('features/consigna/ConsignaRoute.tsx', { id: 'consigna-inicio' }),
+    route('consigna', 'features/consigna/ConsignaRoute.tsx', { id: 'consigna' }),
+    route('acerca', 'features/inicio/InicioRoute.tsx'),
+    route('herramientas', 'features/herramientas/HerramientasRoute.tsx'),
     route('estudio', 'features/estudio/EstudioRoute.tsx'),
     route('afinador', 'features/afinador/AfinadorRoute.tsx', { id: 'afinador-index' }),
     route('afinador/:tuningId', 'features/afinador/AfinadorRoute.tsx', { id: 'afinador-tuning' }),

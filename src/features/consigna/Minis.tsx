@@ -4,6 +4,7 @@ import { drone } from '~/audio/drone';
 import { getAudio } from '~/audio/engine';
 import { playMelody, pluckString, stopInstrument, strum } from '~/audio/instrument';
 import { metronome } from '~/audio/metronome';
+import { song } from '~/audio/song';
 import { canonical } from '~/core/canonical';
 import { closeVoicing, degreeOf, parseChord, voicingFor } from '~/core/chords';
 import type { DroneConfig } from '~/core/drone';
@@ -47,6 +48,7 @@ function usePlayback() {
 
   const play = (seconds: number, sound: () => void) => {
     if (timer.current) clearTimeout(timer.current);
+    if (song.getState().running) song.stop();
     stopInstrument();
     sound();
     setPlaying(true);
@@ -326,9 +328,6 @@ export function MiniLyric() {
 }
 
 export function MiniForm({ blocks }: { blocks: string[] }) {
-  const setBlocks = useProject((s) => s.setBlocks);
-  const current = useProject((s) => s.blocks);
-  const used = current.join() === blocks.join();
   return (
     <div className={styles.mini}>
       <div className={styles.blocks}>
@@ -337,11 +336,6 @@ export function MiniForm({ blocks }: { blocks: string[] }) {
             {letter}
           </span>
         ))}
-      </div>
-      <div className={styles.buttons}>
-        <Button variant="mini" ariaPressed={used} onClick={() => setBlocks(blocks)}>
-          {used ? 'Es tu forma' : 'Usar esta forma'}
-        </Button>
       </div>
     </div>
   );

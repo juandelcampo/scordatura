@@ -3,9 +3,10 @@ import { Link, useNavigate, useSearchParams, type MetaFunction } from 'react-rou
 import { rhythmToParams, type Meter, type RhythmConfig } from '~/core/rhythm';
 import { createRng, randomSeed } from '~/core/rng';
 import { harmonyHref } from '~/core/chords';
-import { rollForm, rollHarmony, rollLyric, rollMelody, rollRhythm } from '~/core/rollers';
+import { rollForm, rollHarmony, rollLyric, rollRhythm } from '~/core/rollers';
 import { FORM_EXAMPLES, type FormExample } from '~/data/forms';
-import { publishToConsigna } from '~/shared/consigna';
+import { newConsigna } from '~/core/consigna';
+import { publishToConsigna, useBlocks, useConsigna } from '~/shared/consigna';
 import { isValidBlocks, letterList, useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
@@ -24,21 +25,24 @@ export const meta: MetaFunction = () => [
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 const DEFAULT_METER: Meter = { groups: [1, 1, 1, 1], denom: 4 };
 
+const setBlocks = (blocks: string[], options?: { continuing?: boolean }) =>
+  publishToConsigna('forma', { blocks }, options);
+
 function Timeline() {
-  const blocks = useProject((s) => s.blocks);
+  const blocks = useBlocks();
   const active = useProject((s) => s.active);
-  const setBlocks = useProject((s) => s.setBlocks);
   const setActive = useProject((s) => s.setActive);
   const [selected, setSelected] = useState(0);
   const dragging = useRef<number | null>(null);
+  const dragged = useRef(false);
   const position = Math.min(selected, blocks.length - 1);
 
-  const move = (from: number, to: number) => {
+  const move = (from: number, to: number, continuing = false) => {
     if (to < 0 || to >= blocks.length || from === to) return;
     const next = [...blocks];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item!);
-    setBlocks(next);
+    setBlocks(next, { continuing });
     setSelected(to);
   };
 
@@ -49,8 +53,9 @@ function Timeline() {
       ?.closest<HTMLElement>('[data-block]');
     const target = under ? Number(under.dataset.block) : null;
     if (target !== null && target !== dragging.current) {
-      move(dragging.current, target);
+      move(dragging.current, target, dragged.current);
       dragging.current = target;
+      dragged.current = true;
     }
   };
 
@@ -73,6 +78,7 @@ function Timeline() {
             }}
             onPointerDown={(event) => {
               dragging.current = index;
+              dragged.current = false;
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
             onPointerMove={onPointerMove}
@@ -142,10 +148,10 @@ function SectionPanel() {
     updateSection(active, {
       chords: rollHarmony(input()).value.chords,
       rhythm: rollRhythm(input()).value,
-      melody: rollMelody(input()).label,
       lyric: rollLyric(input()).label,
     });
   };
+  const written = section?.text?.split('\n').find((line) => line.trim());
 
   return (
     <Slab>
@@ -182,11 +188,15 @@ function SectionPanel() {
         </div>
         <div>
           <dt>Melodía</dt>
-          <dd>{section?.melody ?? <Link to="/melodia">Elegir en Melodía</Link>}</dd>
+          <dd data-testid="section-melody">
+            <Link to="/melodia">Una para todo el tema, en Melodía</Link>
+          </dd>
         </div>
         <div>
           <dt>Letra</dt>
-          <dd>{section?.lyric ?? <Link to="/letras">Escribir en Letras</Link>}</dd>
+          <dd data-testid="section-lyric">
+            <Link to="/letras">{written ?? section?.lyric ?? 'Escribir en Letras'}</Link>
+          </dd>
         </div>
       </dl>
       <div className={styles.record}>
@@ -306,7 +316,6 @@ function ExamplePlayer({ example }: { example: FormExample }) {
 
 function Examples() {
   const [open, setOpen] = useState<string | null>(null);
-  const setBlocks = useProject((s) => s.setBlocks);
   return (
     <Slab>
       <SlabHead title="Ejemplos" />
@@ -352,9 +361,8 @@ function Examples() {
 }
 
 export default function FormaRoute() {
-  const blocks = useProject((s) => s.blocks);
+  const blocks = useBlocks();
   const sections = useProject((s) => s.sections);
-  const setBlocks = useProject((s) => s.setBlocks);
   const risk = useSettings((s) => s.risk);
   const [rule, setRule] = useState('Armala a mano o sorteá una forma.');
   const [params] = useSearchParams();
@@ -366,16 +374,8 @@ export default function FormaRoute() {
     loaded.current = true;
     const shared = params.get('f')?.split('');
     if (isValidBlocks(shared)) setBlocks(shared);
-  }, [params, setBlocks]);
-
-  // Lo que se arma a mano acá también pasa a la consigna. Al abrir la pantalla no cuenta como cambio.
-  const blocksKey = blocks.join('');
-  const lastBlocks = useRef(blocksKey);
-  useEffect(() => {
-    if (lastBlocks.current === blocksKey) return;
-    lastBlocks.current = blocksKey;
-    publishToConsigna('forma', { blocks: blocksKey.split('') });
-  }, [blocksKey]);
+    else if (!useConsigna.getState().started) useConsigna.getState().load(newConsigna(risk));
+  }, [params, risk]);
 
   const [undo, setUndo] = useState<Array<{ blocks: string[]; rule: string }>>([]);
   const roll = () => {

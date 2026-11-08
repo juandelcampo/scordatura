@@ -19,6 +19,8 @@ const VIEWPORTS = [
 
 const ROUTES = [
   '/',
+  '/acerca',
+  '/herramientas',
   '/consigna',
   '/estudio',
   '/drone',
@@ -154,24 +156,13 @@ for (const viewport of VIEWPORTS) {
       } else {
         await expect(menu).toBeHidden();
       }
-      const nav = page.getByRole('navigation', { name: 'Herramientas' });
-      for (const name of [
-        'Consigna',
-        'Estudio',
-        'Afinador',
-        'Ritmo',
-        'Armonía',
-        'Melodía',
-        'Letras',
-        'Cartas',
-        'Forma',
-        'Diario',
-      ]) {
-        await nav.getByRole('link', { name }).scrollIntoViewIfNeeded();
-        await expect(nav.getByRole('link', { name })).toBeInViewport();
+      const nav = page.getByRole('navigation', { name: 'Principal' });
+      for (const name of ['Consigna', 'Diario', 'Herramientas']) {
+        await nav.getByRole('link', { name, exact: true }).scrollIntoViewIfNeeded();
+        await expect(nav.getByRole('link', { name, exact: true })).toBeInViewport();
       }
-      await nav.getByRole('link', { name: 'Ritmo' }).click();
-      await expect(page).toHaveURL(/\/ritmo/);
+      await nav.getByRole('link', { name: 'Herramientas', exact: true }).click();
+      await expect(page).toHaveURL(/\/herramientas/);
       if (hasMenu) await expect(nav).toBeHidden();
     });
 

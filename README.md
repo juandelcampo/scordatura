@@ -2,20 +2,24 @@
 
 Suite para componer fuera de tus costumbres. Genera restricciones con teoría real detrás; la música la hacés vos.
 
-| Sección  | Qué hace                                                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Consigna | Una consigna por módulo. Es el hub: cada parte se escucha y se usa ahí mismo, se traba, se vuelve a tirar y se comparte con un link.        |
-| Estudio  | El tema entero en una pantalla sin desplazarse: la forma, con sus pistas de acordes, batería, melodía, drone y letra. Suena y se edita ahí. |
-| Inicio   | Explica la idea, y lleva a la consigna.                                                                                                     |
-| Afinador | 68 afinaciones, afinador por micrófono, escuchador interactivo y lo que suena con un solo dedo.                                             |
-| Ritmo    | Metrónomo de compases agrupados, ritmos euclidianos, polirritmias y compases que mutan.                                                     |
-| Drone    | Un sinte que sostiene una nota, o las cuerdas de una afinación, para tocar encima.                                                          |
-| Armonía  | Progresiones con su regla a la vista, un editor para sumar, sacar y variar acordes, y cómo tocarlas en cada afinación.                      |
-| Melodía  | Contornos, restricciones, motivos, notas desde texto, mapa de tensiones, y transcribir lo que cantás.                                       |
-| Letras   | Sílabas métricas, esquemas de rima, prosodia, diccionario de rimas, material, cut-up y escritura con reloj.                                 |
-| Cartas   | Mazo de consignas, y las tuyas.                                                                                                             |
-| Forma    | Bloques que se arrastran, sección por sección, y ejemplos con video donde marcás los minutos.                                               |
-| Diario   | Notas de voz y consignas guardadas, pegadas a las condiciones en las que nacieron.                                                          |
+Una sesión tiene un solo camino: sortear la consigna, trabar lo que sirve, tocar sobre la base, grabar y que la idea quede en el Diario. El menú tiene tres entradas: Consigna, Diario y Herramientas.
+
+| Sección  | Lugar       | Qué hace                                                                                                                                                                |
+| -------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Consigna | Centro      | La pantalla de entrada (`/`). Una fila por módulo: cada parte se escucha ahí mismo, se traba, se vuelve a sortear y se comparte con un link, un MIDI o una hoja en PDF. |
+| Diario   | Centro      | Notas de voz y consignas guardadas, pegadas a las condiciones en las que nacieron.                                                                                      |
+| Cartas   | Centro      | Una fila de la consigna y una carta suelta rápida. El mazo completo, con las tuyas, se abre desde ahí.                                                                  |
+| Estudio  | Boceto      | Escuchar la consigna entera, a lo largo de su forma, para tocar encima. "Editar" muestra los editores y la mezcla.                                                      |
+| Afinador | Herramienta | 68 afinaciones, afinador por micrófono, escuchador interactivo y lo que suena con un solo dedo.                                                                         |
+| Ritmo    | Herramienta | Metrónomo de compases agrupados, ritmos euclidianos, polirritmias y compases que mutan.                                                                                 |
+| Drone    | Herramienta | Un sinte que sostiene una nota, o las cuerdas de una afinación, para tocar encima.                                                                                      |
+| Armonía  | Herramienta | Progresiones con su regla a la vista, un editor para sumar, sacar y variar acordes, y cómo tocarlas en cada afinación.                                                  |
+| Melodía  | Herramienta | Contornos, restricciones, motivos, notas desde texto, mapa de tensiones, y transcribir lo que cantás.                                                                   |
+| Letras   | Herramienta | Sílabas métricas, esquemas de rima, prosodia, diccionario de rimas, material, cut-up y escritura con reloj.                                                             |
+| Forma    | Herramienta | Bloques que se arrastran, sección por sección, y ejemplos con video donde marcás los minutos.                                                                           |
+| Acerca   | Aparte      | Explica la idea en veinte segundos (`/acerca`).                                                                                                                         |
+
+Las herramientas son un desvío para ir más hondo en una fila: se abren desde esa fila o desde `/herramientas`, y lo que se elige ahí vuelve a la consigna.
 
 El slider seguro ↔ raro define qué tan lejos sortea cada herramienta, y siempre está en el mismo lugar.
 
@@ -44,7 +48,7 @@ src/
   data/        afinaciones, lo que se sortea, cartas y ejemplos de forma. Solo datos.
   audio/       AudioContext, instrumento (guitarra), drone, micrófono, grabación y metrónomo. Sin React.
   shared/      preferencias, proyecto, diario y componentes de interfaz.
-  shell/       barra lateral, menú y barra de riesgo.
+  shell/       barra lateral, menú, barra de riesgo y el camino de vuelta a la consigna.
   features/    una carpeta por herramienta.
 tests/         lógica y validación de datos (Vitest)
 e2e/           pruebas en Chrome real, incluida la responsive (Playwright)
@@ -86,7 +90,7 @@ Es un requisito, no un detalle:
 - **Una afinación:** una entrada en `data/tunings.ts`. El acorde al aire, los intervalos, los avisos y su página estática se generan solos.
 - **Una carta:** una entrada en `data/cards.ts`.
 - **Un ejemplo de forma:** una entrada en `data/forms.ts`.
-- **Una herramienta:** una carpeta en `features/`, su ruta en `routes.ts` y en `react-router.config.ts`, su entrada en `shell/AppShell.tsx` y su nombre en `FEATURES` de `eslint.config.js`.
+- **Una herramienta:** una carpeta en `features/`, su ruta en `routes.ts` y en `react-router.config.ts`, su entrada en `features/herramientas/HerramientasRoute.tsx` y en `routes` de `shell/AppShell.tsx`, y su nombre en `FEATURES` de `eslint.config.js`.
 
 ## Sobre los datos
 

@@ -48,6 +48,10 @@ let index = 0;
 let cursor = 0;
 let droneConfig: Song['drone'] | null = null;
 let ownsDrone = false;
+/** Lo prendió el tema y debería seguir sonando. */
+let droneOn = false;
+/** La persona lo paró mientras sonaba el tema: no se vuelve a prender hasta el próximo "Tocar". */
+let droneSilenced = false;
 
 function setState(patch: Partial<SongState>) {
   state = { ...state, ...patch };
@@ -77,8 +81,12 @@ function followDrone() {
   if (!plan) return;
   // Si la persona lo prendió aparte, es suyo: el tema no lo toca.
   if (drone.getState().docked) return;
+  if (droneOn && !drone.getState().running) {
+    droneOn = false;
+    droneSilenced = true;
+  }
   const block = plan.blocks[song.position()?.block ?? index];
-  const wanted = plan.audible.drone && !!block?.drone;
+  const wanted = plan.audible.drone && !!block?.drone && !droneSilenced;
   if (plan.drone !== droneConfig) {
     droneConfig = plan.drone;
     drone.setConfig(plan.drone);
@@ -86,7 +94,9 @@ function followDrone() {
   if (wanted && !drone.getState().running) {
     drone.start({ dock: false });
     ownsDrone = true;
+    droneOn = true;
   } else if (!wanted && drone.getState().running) {
+    droneOn = false;
     drone.stop();
   }
 }
@@ -133,6 +143,8 @@ export const song = {
     drone.close();
     plan = next;
     droneConfig = null;
+    droneOn = false;
+    droneSilenced = false;
     prepareInstrument(songPitches(next), next.a4);
     index = Math.min(from, next.blocks.length - 1);
     cursor = 0;
@@ -146,6 +158,7 @@ export const song = {
   stop() {
     ticker.stop();
     stopInstrument();
+    droneOn = false;
     if (ownsDrone && !drone.getState().docked) drone.stop();
     ownsDrone = false;
     setState({ running: false });
@@ -191,3 +204,8 @@ export const song = {
     return { block: anchor.block, beat: clamped, fraction: clamped / block.beats, ...locate(block, clamped) };
   },
 };
+
+// Es la otra mitad de lo que hace play: si arranca el metrónomo, el tema cede. Si no, sonarían dos ritmos.
+metronome.subscribe(() => {
+  if (state.running && metronome.getState().running) song.stop();
+});

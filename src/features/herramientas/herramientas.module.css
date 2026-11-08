@@ -1,0 +1,69 @@
+.tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tools li {
+  min-width: 0;
+  border-bottom: var(--rule);
+}
+.tools a {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  height: 100%;
+  padding: 14px var(--gutter);
+  text-decoration: none;
+}
+.tools a:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tools small {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.tools strong {
+  font: 900 26px/1.05 var(--heavy);
+  letter-spacing: -0.02em;
+}
+.tools span {
+  font-size: 14px;
+}
+
+.more {
+  color: var(--muted);
+  font-size: 14px;
+}
+.more a {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+@container main (min-width: 620px) {
+  .tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tools li:nth-child(odd) {
+    border-right: var(--rule);
+  }
+}
+
+/* Son siete: la última ocupa el resto de la fila, para no dejar una celda vacía. */
+@container main (min-width: 900px) {
+  .tools {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .tools li:nth-child(odd) {
+    border-right: 0;
+  }
+  .tools li:not(:nth-child(3n)) {
+    border-right: var(--rule);
+  }
+  .tools li:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+}

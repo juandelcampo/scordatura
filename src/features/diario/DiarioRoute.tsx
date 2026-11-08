@@ -109,7 +109,10 @@ export default function DiarioRoute() {
         <SlabHead title="Semillas" />
         {failed && <p>No se pudo abrir el diario en este navegador. Puede pasar en una ventana privada.</p>}
         {entries?.length === 0 && (
-          <p className={styles.empty}>Todavía no hay nada. Grabá una idea y va a aparecer acá.</p>
+          <p className={styles.empty}>
+            Todavía no hay nada. <Link to="/">Sorteá una consigna</Link>, tocá sobre ella y grabá: la idea va
+            a aparecer acá.
+          </p>
         )}
         <ul className={styles.entries}>
           {entries?.map((entry) => (

@@ -26,6 +26,8 @@ interface Settings {
   risk: Risk;
   tunerMode: TunerMode;
   sidebarCollapsed: boolean;
+  /** El Estudio abre para escuchar; quien edita ahí lo encuentra como lo dejó. */
+  studioEditing: boolean;
   customNotes: string[];
   ownCards: OwnCard[];
   set: (patch: Partial<Omit<Settings, 'set'>>) => void;
@@ -58,6 +60,7 @@ function sanitize(saved: Partial<Settings>): Partial<Settings> {
   if (saved.risk === 0 || saved.risk === 1 || saved.risk === 2) clean.risk = saved.risk;
   if (saved.tunerMode === 'guided' || saved.tunerMode === 'auto') clean.tunerMode = saved.tunerMode;
   if (typeof saved.sidebarCollapsed === 'boolean') clean.sidebarCollapsed = saved.sidebarCollapsed;
+  if (typeof saved.studioEditing === 'boolean') clean.studioEditing = saved.studioEditing;
   if (Array.isArray(saved.customNotes) && saved.customNotes.length === 6 && saved.customNotes.every(isNote)) {
     clean.customNotes = saved.customNotes;
   }
@@ -80,6 +83,7 @@ export const useSettings = create<Settings>()(
       risk: 1,
       tunerMode: 'guided',
       sidebarCollapsed: false,
+      studioEditing: false,
       customNotes: [...STANDARD],
       ownCards: [],
       set: (patch) => set(patch),

@@ -1,6 +1,6 @@
 // Lo que usa el micrófono fuera del afinador: grabar ideas, transcribir y el ritmo del habla.
 import { expect, test } from '@playwright/test';
-import { goto, watchErrors } from './fixtures/helpers';
+import { goto, openSection, watchErrors } from './fixtures/helpers';
 import { micWith } from './fixtures/mic';
 
 test.use({ ...micWith('a3-exact.wav'), viewport: { width: 1280, height: 800 } });
@@ -15,7 +15,7 @@ test('grabar una idea la guarda en el diario con su consigna y su sección', asy
   await page.locator('#record').click();
   await expect(page.getByText('Guardada en el diario.')).toBeVisible();
 
-  await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name: 'Diario' }).click();
+  await openSection(page, 'Diario');
   const entry = page.getByTestId('entry').first();
   await expect(entry).toBeVisible();
   await expect(entry).toContainText(/Consigna Nº \w+/);
@@ -41,7 +41,7 @@ test('grabar una idea la guarda en el diario con su consigna y su sección', asy
     .click();
   await expect(page.getByText(`Consigna Nº ${number}`)).toBeVisible();
 
-  await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name: 'Diario' }).click();
+  await openSection(page, 'Diario');
   await page.getByRole('button', { name: /Borrar Idea/ }).click();
   await expect(page.getByTestId('entry')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -50,7 +50,7 @@ test('grabar una idea la guarda en el diario con su consigna y su sección', asy
 test('se puede guardar la consigna sin grabar nada', async ({ page }) => {
   await goto(page, '/consigna');
   await expect(page).toHaveURL(/\?t=/);
-  await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name: 'Diario' }).click();
+  await openSection(page, 'Diario');
   await page.locator('#save-consigna').click();
   await expect(page.getByTestId('entry').first()).toHaveAttribute('data-kind', 'consigna');
 });

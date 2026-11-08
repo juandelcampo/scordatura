@@ -8,6 +8,8 @@ export default {
   ssr: false,
   prerender: [
     '/',
+    '/acerca',
+    '/herramientas',
     '/afinador',
     '/afinador/tuya',
     '/consigna',

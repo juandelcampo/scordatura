@@ -1,32 +1,47 @@
-// El Estudio: el tema entero en una sola pantalla, sin desplazarse. Arriba el transporte, en el
-// medio una pista por elemento a lo largo de la forma, y abajo los editores de la sección elegida.
+// El Estudio: escuchar la consigna entera en una sola pantalla, sin desplazarse. Arriba el transporte y
+// en el medio una pista por elemento a lo largo de la forma. Es un boceto: abre para escuchar, y los
+// editores de la sección elegida y la mezcla aparecen solo si se piden.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { song } from '~/audio/song';
 import { consignaNumber, newConsigna } from '~/core/consigna';
-import { useConsigna } from '~/shared/consigna';
+import { clampBpm } from '~/core/rhythm';
+import { publishToConsigna, useBlocks, useConsigna } from '~/shared/consigna';
+import { ExportMidiButton } from '~/shared/ExportMidiButton';
 import { useProject } from '~/shared/project';
+import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
 import { useConsignaParts, useSong } from '~/shared/song';
+import { useHydrated } from '~/shared/useHydrated';
 import { Tracks, type PanelId } from './Tracks';
 import { ChordsPanel, DronePanel, DrumsPanel, FormPanel, LyricPanel, MelodyPanel } from './Panels';
 import styles from './estudio.module.css';
 
 export const meta: MetaFunction = () => [
-  { title: 'Estudio: el tema entero en una pantalla · Scordatura' },
+  { title: 'Estudio: escuchar la consigna entera · Scordatura' },
   {
     name: 'description',
     content:
-      'La forma de la canción con sus acordes, batería, melodía, drone y letra en pistas, para escucharla y editarla sin cambiar de pantalla.',
+      'La consigna sonando entera, a lo largo de su forma: acordes, batería, melodía, drone y letra, para tocar encima, grabar la idea o bajarla en MIDI.',
   },
 ];
 
 const TEMPO_STEP = 2;
 
-function Transport({ selected }: { selected: number }) {
+function Transport({
+  selected,
+  editing,
+  onEditing,
+}: {
+  selected: number;
+  editing: boolean;
+  onEditing: (next: boolean) => void;
+}) {
   const plan = useSong();
   const state = useSyncExternalStore(song.subscribe, song.getState, song.getState);
-  const setTempo = useProject((s) => s.setTempo);
+  const parts = useConsignaParts();
+  // El tempo es el del ritmo de la consigna.
+  const setTempo = (bpm: number) => publishToConsigna('ritmo', { ...parts.rhythm, bpm: clampBpm(bpm) });
   const number = consignaNumber(useConsigna((s) => s.consigna));
   const readout = useRef<HTMLOutputElement>(null);
 
@@ -101,8 +116,22 @@ function Transport({ selected }: { selected: number }) {
           +
         </button>
       </div>
+      <button
+        type="button"
+        className={styles.toggle}
+        id="song-edit"
+        aria-pressed={editing}
+        title="Muestra los editores y la mezcla"
+        onClick={() => onEditing(!editing)}
+      >
+        Editar
+      </button>
+      <div className={styles.session}>
+        <RecordButton />
+        <ExportMidiButton variant="mini" />
+      </div>
       <output ref={readout} className={styles.readout} data-testid="song-position" />
-      <Link className={styles.source} to="/consigna">
+      <Link className={styles.source} to="/">
         Consigna Nº {number}
       </Link>
     </div>
@@ -110,12 +139,20 @@ function Transport({ selected }: { selected: number }) {
 }
 
 export default function EstudioRoute() {
-  const blocks = useProject((s) => s.blocks);
+  const blocks = useBlocks();
+  const active = useProject((s) => s.active);
   const setActive = useProject((s) => s.setActive);
   const parts = useConsignaParts();
-  const [selectedRaw, setSelected] = useState(0);
+  const hydrated = useHydrated();
+  const savedEditing = useSettings((s) => s.studioEditing);
+  const setSettings = useSettings((s) => s.set);
+  const editing = hydrated && savedEditing;
+  const setEditing = (next: boolean) => setSettings({ studioEditing: next });
+  // Hasta que se elija un bloque acá, se sigue en la sección que venías usando.
+  const [selectedRaw, setSelected] = useState<number | null>(null);
   const [panel, setPanel] = useState<PanelId>('bateria');
-  const selected = Math.min(selectedRaw, blocks.length - 1);
+  const fromActive = hydrated ? Math.max(0, blocks.indexOf(active)) : 0;
+  const selected = Math.min(selectedRaw ?? fromActive, blocks.length - 1);
 
   // Sin consigna todavía se sortea una: de ahí sale lo que falte en cada sección.
   useEffect(() => {
@@ -125,13 +162,22 @@ export default function EstudioRoute() {
 
   // La sección que se edita es la del bloque elegido.
   const letter = blocks[selected] ?? 'A';
-  useEffect(() => setActive(letter), [letter, setActive]);
+  const chosen = selectedRaw !== null;
+  useEffect(() => {
+    if (chosen) setActive(letter);
+  }, [chosen, letter, setActive]);
+
+  // Tocar una pista para editarla también abre los editores.
+  const openPanel = (next: PanelId) => {
+    setPanel(next);
+    setEditing(true);
+  };
 
   return (
-    <div className={styles.studio} data-open-panel={panel}>
+    <div className={styles.studio} data-open-panel={panel} data-editing={editing}>
       <h1 className="sr-only">Estudio</h1>
-      <Transport selected={selected} />
-      <Tracks selected={selected} onSelect={setSelected} panel={panel} onPanel={setPanel} parts={parts} />
+      <Transport selected={selected} editing={editing} onEditing={setEditing} />
+      <Tracks selected={selected} onSelect={setSelected} panel={panel} onPanel={openPanel} parts={parts} />
       <div className={styles.panels}>
         <FormPanel selected={selected} onSelect={setSelected} open={panel === 'forma'} />
         <DrumsPanel letter={letter} parts={parts} open={panel === 'bateria'} />

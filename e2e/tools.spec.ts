@@ -1,6 +1,6 @@
 // Afinador nuevo, sidebar, armonía, melodía, letras, forma y la conexión entre herramientas.
 import { expect, test, type Page } from '@playwright/test';
-import { countSounds, goto, plucks, watchErrors } from './fixtures/helpers';
+import { countSounds, goto, gotoStudioEditing, openSection, plucks, watchErrors } from './fixtures/helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -76,7 +76,7 @@ test.describe('elegir una afinación', () => {
 test.describe('barra lateral', () => {
   test('se colapsa, da más lugar al contenido y se recuerda', async ({ page }) => {
     await goto(page, '/consigna');
-    const nav = page.getByRole('navigation', { name: 'Herramientas' });
+    const nav = page.getByRole('navigation', { name: 'Principal' });
     const wide = (await nav.boundingBox())!.width;
     const mainWide = (await page.locator('main').boundingBox())!.width;
     await page.getByRole('button', { name: 'Colapsar la barra lateral' }).click();
@@ -84,15 +84,15 @@ test.describe('barra lateral', () => {
     await expect
       .poll(async () => (await page.locator('main').boundingBox())!.width)
       .toBeGreaterThan(mainWide);
-    await expect(nav.getByRole('link', { name: 'Ritmo' })).toBeVisible();
-    await expect(nav.getByText('Ritmo')).toBeHidden();
+    await expect(nav.getByRole('link', { name: 'Diario' })).toBeVisible();
+    await expect(nav.getByText('Diario')).toBeHidden();
 
-    await nav.getByRole('link', { name: 'Ritmo' }).click();
-    await expect(page).toHaveURL(/\/ritmo/);
+    await nav.getByRole('link', { name: 'Diario' }).click();
+    await expect(page).toHaveURL(/\/diario/);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Expandir la barra lateral' })).toBeVisible();
     await page.getByRole('button', { name: 'Expandir la barra lateral' }).click();
-    await expect(nav.getByText('Ritmo')).toBeVisible();
+    await expect(nav.getByText('Diario')).toBeVisible();
   });
 
   test('sin el mood no queda ningún rastro en la pantalla', async ({ page }) => {
@@ -137,6 +137,49 @@ test.describe('armonía', () => {
   });
 
   const title = (page: Page) => page.getByRole('heading', { level: 1 });
+  const choose = (page: Page, name: string) =>
+    page.getByRole('button', { name: `Elegir ${name}`, exact: true }).click();
+
+  test('tocar un acorde lo hace sonar y muestra sus controles', async ({ page }) => {
+    await countSounds(page);
+    await goto(page, '/armonia?c=C,Am,F,G&k=0&m=ionian');
+    // Sin un acorde elegido no hay controles sueltos ni una pestaña que varíe uno al azar.
+    await expect(page.getByTestId('chord-bar')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Variar/ })).toHaveCount(0);
+
+    await choose(page, 'F');
+    await expect.poll(() => plucks(page)).toBeGreaterThan(0);
+    await expect(page.getByTestId('chord-bar')).toContainText('F');
+    await expect(page.getByTestId('panel-acorde')).toBeVisible();
+
+    // Toda la tarjeta responde, no solo el nombre.
+    const card = page.getByTestId('chord').nth(1);
+    const box = (await card.boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height - 6);
+    await expect(page.getByRole('button', { name: 'Variar Am' })).toBeVisible();
+
+    // El candado no elige el acorde.
+    await page.getByRole('button', { name: 'Trabar C' }).click();
+    await expect(page.getByRole('button', { name: 'Variar Am' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Listo' }).click();
+    await expect(page.getByTestId('chord-bar')).toHaveCount(0);
+    await expect(page.getByTestId('panel-sumar')).toBeVisible();
+  });
+
+  test('en el celular, los ajustes se pliegan y los controles quedan a mano', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await goto(page, '/armonia?c=C,Am,F,G&k=0&m=ionian');
+    await expect(page.getByTestId('harmony-tuning')).toBeHidden();
+    await page.getByTestId('harmony-settings-toggle').click();
+    await expect(page.getByTestId('harmony-tuning')).toBeVisible();
+    await page.getByTestId('harmony-settings-toggle').click();
+
+    await page.getByTestId('panel-sumar').getByTestId('chord-input').scrollIntoViewIfNeeded();
+    await expect(page.locator('#roll-harmony')).toBeInViewport();
+    await expect(page.locator('#play-harmony')).toBeInViewport();
+    await expect(page.getByTestId('harmony-rule')).toBeInViewport();
+  });
 
   test('se suman, se sacan y se mueven acordes, y todo se puede deshacer', async ({ page }) => {
     const errors = watchErrors(page);
@@ -152,10 +195,13 @@ test.describe('armonía', () => {
     await page.locator('#add-typed-chord').click();
     await expect(page.getByRole('alert')).toContainText('No reconozco');
 
+    await choose(page, 'F#m7b5');
     await page.getByRole('button', { name: 'Sacar F#m7b5' }).click();
+    await choose(page, 'Em');
     await page.getByRole('button', { name: 'Sacar Em' }).click();
     await expect(page.getByTestId('chord')).toHaveCount(4);
 
+    await choose(page, 'Am');
     await page.getByRole('button', { name: 'Mover Am antes' }).click();
     await expect(title(page)).toHaveText('Am – C – F – G');
     await page.locator('#undo-harmony').click();
@@ -168,6 +214,7 @@ test.describe('armonía', () => {
   test('el traba acompaña al acorde cuando se mueve, y el sorteo respeta el largo', async ({ page }) => {
     await goto(page, '/armonia?c=C,Am,F,G,Em&k=0&m=ionian');
     await page.getByRole('button', { name: 'Trabar Am' }).click();
+    await choose(page, 'Am');
     await page.getByRole('button', { name: 'Mover Am después' }).click();
     await expect(page.getByTestId('chord').nth(2)).toHaveAttribute('data-locked', 'true');
     await page.locator('#roll-harmony').click();
@@ -177,25 +224,27 @@ test.describe('armonía', () => {
 
   test('dos toques seguidos no pierden ninguna edición', async ({ page }) => {
     await goto(page, '/armonia?c=C,Am,F,G,Em,Dm&k=0&m=ionian');
+    await choose(page, 'C');
     // Cada toque en su propia tarea, como en un dedo real, pero sin esperar a la navegación.
     await page.evaluate(async () => {
       const press = (label: string) =>
         document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
-      press('Sacar Dm');
+      press('Mover C después');
       await new Promise((resolve) => setTimeout(resolve));
-      press('Sacar Em');
+      press('Mover C después');
       await new Promise((resolve) => setTimeout(resolve));
-      press('Mover Am antes');
+      press('Sacar C');
     });
-    await expect(page.getByTestId('chord')).toHaveCount(4);
-    await expect(title(page)).toHaveText('Am – C – F – G');
-    await expect(page).toHaveURL(/c=Am%2CC%2CF%2CG/);
+    await expect(page.getByTestId('chord')).toHaveCount(5);
+    await expect(title(page)).toHaveText('Am – F – G – Em – Dm');
+    await expect(page).toHaveURL(/c=Am%2CF%2CG%2CEm%2CDm/);
     await page.reload();
-    await expect(title(page)).toHaveText('Am – C – F – G');
+    await expect(title(page)).toHaveText('Am – F – G – Em – Dm');
   });
 
   test('no deja bajar de dos acordes ni pasar de dieciséis', async ({ page }) => {
     await goto(page, '/armonia?c=C,G');
+    await choose(page, 'C');
     await expect(page.getByRole('button', { name: 'Sacar C' })).toBeDisabled();
     const full = Array.from({ length: 16 }, () => 'C').join(',');
     await goto(page, `/armonia?c=${full}&k=0&m=ionian`);
@@ -323,7 +372,9 @@ test.describe('armonía', () => {
     await expect(page.getByTestId('chord-beats').first()).toHaveText('4 t');
     await expect(page).not.toHaveURL(/d=/);
 
+    await choose(page, 'C');
     await page.getByRole('button', { name: 'Alargar C' }).click();
+    await choose(page, 'G');
     await page.getByRole('button', { name: 'Acortar G' }).click();
     await expect(page.getByTestId('chord-beats').first()).toHaveText('5 t');
     await expect(page.getByTestId('harmony-beats')).toHaveText('8 en total');
@@ -333,6 +384,7 @@ test.describe('armonía', () => {
     await expect(page.getByTestId('chord-beats').last()).toHaveText('3 t');
 
     // La duración viaja con el acorde.
+    await choose(page, 'C');
     await page.getByRole('button', { name: 'Mover C después' }).click();
     await expect(title(page)).toHaveText('G – C');
     await expect(page.getByTestId('chord-beats').first()).toHaveText('3 t');
@@ -392,7 +444,7 @@ test.describe('armonía', () => {
       'href',
       /d=6,2/,
     );
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await expect(page.locator('a[href*="d=6,2"]').first()).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -459,10 +511,7 @@ test.describe('melodía', () => {
   test('el mapa de tensiones usa los acordes de la sección', async ({ page }) => {
     await goto(page, '/armonia?c=Dm,G7');
     await page.locator('#save-harmony').click();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Melodía' })
-      .click();
+    await openSection(page, 'Melodía');
     await page.getByRole('button', { name: 'Tensiones' }).click();
     await page.getByRole('button', { name: 'G7' }).click();
     const tensions = page.getByTestId('tension');
@@ -628,9 +677,9 @@ test.describe('forma', () => {
     await goto(page, '/armonia?c=Dm,G7');
     await page.getByTestId('section-picker').selectOption('B');
     await page.locator('#save-harmony').click();
-    await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name: 'Ritmo' }).click();
+    await openSection(page, 'Ritmo');
     await page.locator('#save-rhythm').click();
-    await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name: 'Forma' }).click();
+    await openSection(page, 'Forma');
     await expect(page.getByRole('heading', { name: 'Sección B' })).toBeVisible();
     await expect(page.getByTestId('section-chords')).toContainText('Dm – G7');
     await expect(page.getByTestId('section-rhythm')).toContainText('ppm');

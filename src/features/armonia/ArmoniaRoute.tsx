@@ -45,7 +45,7 @@ import { useSong } from '~/shared/song';
 import { useHydrated } from '~/shared/useHydrated';
 import { Button, PageTitle, Slab, SlabHead, Stepper, Tabs } from '~/shared/ui/ui';
 import styles from './armonia.module.css';
-import { AddPanel, ChordPanel, FormulasPanel, WholePanel, type WholeActions } from './Panels';
+import { AddPanel, ChordBar, ChordPanel, FormulasPanel, WholePanel, type WholeActions } from './Panels';
 import { useProgressionPlayer } from './useProgressionPlayer';
 
 export const meta: MetaFunction = () => [
@@ -59,7 +59,6 @@ export const meta: MetaFunction = () => [
 
 const EXAMPLE = ['Am', 'F', 'C', 'G'];
 const TONICS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
-const LONG_TITLE = 6;
 
 type Tab = 'sumar' | 'acorde' | 'toda' | 'formulas';
 
@@ -73,6 +72,20 @@ interface Snapshot {
 }
 
 const isMode = (text: string | null): text is ModeId => text !== null && text in MODES;
+
+function LockIcon({ closed }: { closed: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+      <rect x="2" y="7" width="12" height="8" />
+      <path
+        d={closed ? 'M5 7V4.5a3 3 0 0 1 6 0V7' : 'M5 7V4.5a3 3 0 0 1 5.8-1'}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
 
 export default function ArmoniaRoute() {
   const risk = useSettings((s) => s.risk);
@@ -94,6 +107,7 @@ export default function ArmoniaRoute() {
   const [keepKey, setKeepKey] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [loop, setLoop] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [draft, setDraft] = useState<{ search: string; known: string[] } | null>(null);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -120,6 +134,8 @@ export default function ArmoniaRoute() {
     beats: beats[index]!,
   }));
   const chosen = selected !== null && selected < chords.length ? selected : null;
+  // Variar no existe sin un acorde elegido: si se deja de elegir, se vuelve a Sumar.
+  const shownTab = tab === 'acorde' && chosen === null ? 'sumar' : tab;
 
   // La tónica viene de la URL; si no, se toma la del primer acorde.
   const keyText = shown.get('k');
@@ -239,6 +255,13 @@ export default function ArmoniaRoute() {
     panel.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   };
 
+  /** Tocar un acorde lo hace sonar y lo deja listo para editar, sin mover la pantalla: quizá solo querías oírlo. */
+  const selectChord = (index: number) => {
+    setSelected(index);
+    setTab('acorde');
+    audition(chords[index]!);
+  };
+
   const addChord = (name: string) => {
     const at = chosen === null ? chords.length : chosen + 1;
     // Entra con la duración del acorde que tiene al lado: en una vuelta de a 2, sigue siendo de a 2.
@@ -288,9 +311,7 @@ export default function ArmoniaRoute() {
     );
   };
 
-  const panelChord = chosen ?? 0;
-
-  const pickVariation = (variation: Variation) => {
+  const pickVariation = (variation: Variation, panelChord: number) => {
     const target = chords[panelChord]!;
     if (variation.action === 'replace') {
       const name = variation.chords[0]!;
@@ -386,56 +407,53 @@ export default function ArmoniaRoute() {
 
   const atMost = chords.length >= MAX_CHORDS;
   const atLeast = chords.length <= MIN_CHORDS;
+  const tuningName = TUNINGS.find((tuning) => tuning.id === tuningId)?.name;
 
   return (
     <div>
-      <Slab className={chords.length > LONG_TITLE ? styles.longTitle : ''}>
+      <Slab className={styles.head}>
         <PageTitle eyebrow="Armonía" title={chords.join(' – ')}>
           <p className={styles.degrees} data-testid="degrees">
             {degrees.join(' – ')}
           </p>
-          <p>
-            <strong>Regla →</strong> <span data-testid="harmony-rule">{rule}</span>
-          </p>
         </PageTitle>
-        <div className={styles.actions}>
-          <Button variant="primary" onClick={roll} id="roll-harmony">
-            Sortear
-          </Button>
-          <Button onClick={goBack} id="undo-harmony" disabled={undo.length === 0}>
-            ↩ Volver
-          </Button>
-          <Button onClick={() => (playing ? stop() : play())} id="play-harmony">
-            {playing ? '■ Parar' : '▶ Oír'}
-          </Button>
-          <Button onClick={() => setLoop(!loop)} ariaPressed={loop} id="loop-harmony">
-            ⟳ En loop
-          </Button>
-          <Stepper
-            label="Tempo"
-            value={<span data-testid="harmony-bpm">{bpm} BPM</span>}
-            onDown={() => setBpm(Math.max(40, bpm - 5))}
-            onUp={() => setBpm(Math.min(220, bpm + 5))}
-          />
-          <Stepper
-            label="Tiempos por acorde"
-            value={
-              <span data-testid="harmony-beats">
-                {evenBeats
-                  ? `${beats[0]} ${beats[0] === 1 ? 'tiempo' : 'tiempos'}`
-                  : `${totalBeats} en total`}
-              </span>
-            }
-            onDown={() => changeAllBeats(-1)}
-            onUp={() => changeAllBeats(1)}
-          />
-          <Fader channel="instrumento" />
-        </div>
-      </Slab>
-
-      <Slab>
-        <SlabHead title="La progresión" />
-        <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.settingsToggle}
+          aria-expanded={settingsOpen}
+          data-testid="harmony-settings-toggle"
+          onClick={() => setSettingsOpen(!settingsOpen)}
+        >
+          <span>
+            {TONICS[tonic]} {MODES[mode].name} · {tuningName} · {bpm} BPM
+          </span>
+          <span aria-hidden="true">{settingsOpen ? '▴' : '▾'}</span>
+        </button>
+        <div className={styles.settings} data-open={settingsOpen}>
+          <div className={styles.tuningField}>
+            <span>Tempo</span>
+            <Stepper
+              label="Tempo"
+              value={<span data-testid="harmony-bpm">{bpm} BPM</span>}
+              onDown={() => setBpm(Math.max(40, bpm - 5))}
+              onUp={() => setBpm(Math.min(220, bpm + 5))}
+            />
+          </div>
+          <div className={styles.tuningField}>
+            <span>Tiempos por acorde</span>
+            <Stepper
+              label="Tiempos por acorde"
+              value={
+                <span data-testid="harmony-beats">
+                  {evenBeats
+                    ? `${beats[0]} ${beats[0] === 1 ? 'tiempo' : 'tiempos'}`
+                    : `${totalBeats} en total`}
+                </span>
+              }
+              onDown={() => changeAllBeats(-1)}
+              onUp={() => changeAllBeats(1)}
+            />
+          </div>
           <label className={styles.tuningField}>
             <span>Tónica</span>
             <select
@@ -464,6 +482,9 @@ export default function ArmoniaRoute() {
               ))}
             </select>
           </label>
+          <Button ariaPressed={keepKey} onClick={() => setKeepKey(!keepKey)} id="keep-key">
+            Sortear en este tono
+          </Button>
           <label className={styles.tuningField}>
             <span>Afinación</span>
             <select
@@ -478,187 +499,193 @@ export default function ArmoniaRoute() {
               ))}
             </select>
           </label>
-          <Button ariaPressed={keepKey} onClick={() => setKeepKey(!keepKey)} id="keep-key">
-            Sortear en este tono
-          </Button>
+          <Fader channel="instrumento" />
         </div>
-        <div className={styles.timeline} aria-hidden="true" data-testid="timeline">
-          {chords.map((name, index) => (
-            <span
-              key={`${name}-${index}`}
-              style={{ flexGrow: beats[index] }}
-              data-playing={current === index}
-              data-selected={chosen === index}
-            />
-          ))}
-        </div>
-        <ul className={styles.chords}>
-          {chords.map((name, index) => {
-            const voicing = voicings[index];
-            const isLocked = Boolean(locked[index]);
-            return (
-              <li
-                key={`${name}-${index}`}
-                className={styles.chord}
-                data-locked={isLocked}
-                data-selected={chosen === index}
-                data-playing={current === index}
-                data-testid="chord"
-              >
-                <span className={styles.degree} data-testid="degree">
-                  {degrees[index]}
-                </span>
-                <span className={styles.role} data-testid="role">
-                  {roleOf(chords, index, chordKey)}
-                </span>
-                <h3>
-                  <button
-                    type="button"
-                    className={styles.chordName}
-                    aria-label={`Elegir ${name}`}
-                    aria-pressed={chosen === index}
-                    onClick={() => {
-                      setSelected(index);
-                      openPanel('acorde');
-                    }}
-                  >
-                    {name}
-                  </button>
-                </h3>
-                <p className={styles.frets} data-testid="frets">
-                  {voicing
-                    ? voicing.frets.map((fret) => (fret === null ? 'x' : fret)).join(' ')
-                    : 'Sin digitación simple'}
-                </p>
-                <div className={styles.chordActions}>
-                  <Button
-                    variant="mini"
-                    onClick={() => strum(midisOfName(name, voicing), a4)}
-                    ariaLabel={`Oír ${name}`}
-                  >
-                    ▶
-                  </Button>
-                  <span className={styles.lockSlot}>
-                    <Button
-                      variant="mini"
-                      full
-                      ariaPressed={isLocked}
-                      ariaLabel={`${isLocked ? 'Destrabar' : 'Trabar'} ${name}`}
-                      onClick={() =>
-                        setLocked(chords.map((_, i) => (i === index ? !isLocked : Boolean(locked[i]))))
-                      }
-                    >
-                      {isLocked ? 'Trabado' : 'Trabar'}
-                    </Button>
-                  </span>
-                  <Button
-                    variant="mini"
-                    ariaLabel={`Mover ${name} antes`}
-                    disabled={index === 0}
-                    onClick={() => moveChord(index, index - 1)}
-                  >
-                    ←
-                  </Button>
-                  <Button
-                    variant="mini"
-                    ariaLabel={`Mover ${name} después`}
-                    disabled={index === chords.length - 1}
-                    onClick={() => moveChord(index, index + 1)}
-                  >
-                    →
-                  </Button>
-                  <Button
-                    variant="mini"
-                    ariaLabel={`Sacar ${name}`}
-                    disabled={atLeast}
-                    onClick={() => removeChord(index)}
-                  >
-                    ✕
-                  </Button>
-                  <Button
-                    variant="mini"
-                    ariaLabel={`Acortar ${name}`}
-                    disabled={beats[index] === 1}
-                    onClick={() => changeBeats(index, -1)}
-                  >
-                    −
-                  </Button>
-                  <span className={styles.beatsCount} data-testid="chord-beats">
-                    {beats[index]} t
-                  </span>
-                  <Button
-                    variant="mini"
-                    ariaLabel={`Alargar ${name}`}
-                    disabled={beats[index] === MAX_CHORD_BEATS}
-                    onClick={() => changeBeats(index, 1)}
-                  >
-                    +
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-          {!atMost && (
-            <li className={styles.addSlot}>
-              <button
-                type="button"
-                data-testid="add-chord"
-                onClick={() => {
-                  setSelected(null);
-                  openPanel('sumar');
-                }}
-              >
-                + Sumar acorde
-              </button>
-            </li>
-          )}
-        </ul>
-        <p className={styles.hint}>
-          Tocá el nombre de un acorde para variarlo, y con − y + cambiá cuántos tiempos (t) dura. Los números
-          son trastes, de la 6.ª cuerda a la 1.ª, y una x es una cuerda que no se toca. Los grados se miden
-          contra la escala mayor: en minúscula los acordes menores, y con bemol lo que queda abajo de esa
-          escala.
-        </p>
       </Slab>
 
-      <Slab>
-        <div ref={panel} className={styles.panel}>
-          <Tabs
-            label="Editar la progresión"
-            value={tab}
-            onChange={setTab}
-            options={[
-              { value: 'sumar', label: 'Sumar' },
-              { value: 'acorde', label: `Variar ${chords[panelChord]}` },
-              { value: 'toda', label: 'Toda la progresión' },
-              { value: 'formulas', label: 'Fórmulas' },
-            ]}
-          />
-          <div className={styles.panelBody} data-testid={`panel-${tab}`}>
-            {tab === 'sumar' && (
-              <AddPanel
-                chordKey={chordKey}
-                count={chords.length}
-                afterName={chosen === null ? null : chords[chosen]!}
-                onAdd={addChord}
-                onAddAtEnd={() => setSelected(null)}
-              />
-            )}
-            {tab === 'acorde' && (
-              <ChordPanel
-                name={chords[panelChord]!}
-                chordKey={chordKey}
-                count={chords.length}
-                onPick={pickVariation}
-              />
-            )}
-            {tab === 'toda' && (
-              <WholePanel tonicName={TONICS[tonic]!} mode={mode} full={atMost} actions={whole} />
-            )}
-            {tab === 'formulas' && <FormulasPanel tonic={tonic} onPick={pickFormula} />}
+      <section className={styles.workspace} aria-label="La progresión">
+        <div className={styles.board}>
+          <div className={styles.transport}>
+            <div className={styles.transportRow}>
+              <Button variant="primary" onClick={roll} id="roll-harmony">
+                Sortear
+              </Button>
+              <Button onClick={goBack} id="undo-harmony" ariaLabel="Volver" disabled={undo.length === 0}>
+                ↩<span className={styles.wideLabel}> Volver</span>
+              </Button>
+              <Button onClick={() => (playing ? stop() : play())} id="play-harmony">
+                {playing ? '■ Parar' : '▶ Oír'}
+              </Button>
+              <Button onClick={() => setLoop(!loop)} ariaLabel="En loop" ariaPressed={loop} id="loop-harmony">
+                ⟳<span className={styles.wideLabel}> En loop</span>
+              </Button>
+            </div>
+            {/* Atajo con el dedo cuando la lista quedó arriba. Para el teclado y el lector están las tarjetas. */}
+            <div className={styles.timeline} aria-hidden="true" data-testid="timeline">
+              {chords.map((name, index) => (
+                <span
+                  key={`${name}-${index}`}
+                  style={{ flexGrow: beats[index] }}
+                  data-playing={current === index}
+                  data-selected={chosen === index}
+                  onClick={() => selectChord(index)}
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+            <p className={styles.rule} aria-live="polite">
+              <strong>Regla →</strong> <span data-testid="harmony-rule">{rule}</span>
+            </p>
           </div>
+
+          <ul className={styles.chords}>
+            {chords.map((name, index) => {
+              const voicing = voicings[index];
+              const isLocked = Boolean(locked[index]);
+              return (
+                <li
+                  key={`${name}-${index}`}
+                  className={styles.chord}
+                  data-locked={isLocked}
+                  data-selected={chosen === index}
+                  data-playing={current === index}
+                  data-testid="chord"
+                >
+                  <div className={styles.chordHead}>
+                    <span className={styles.degree} data-testid="degree">
+                      {degrees[index]}
+                    </span>
+                    <span className={styles.lockSlot}>
+                      <Button
+                        variant="mini"
+                        ariaPressed={isLocked}
+                        ariaLabel={`${isLocked ? 'Destrabar' : 'Trabar'} ${name}`}
+                        onClick={() =>
+                          setLocked(chords.map((_, i) => (i === index ? !isLocked : Boolean(locked[i]))))
+                        }
+                      >
+                        <LockIcon closed={isLocked} />
+                      </Button>
+                    </span>
+                  </div>
+                  <h3>
+                    <button
+                      type="button"
+                      className={styles.chordName}
+                      aria-label={`Elegir ${name}`}
+                      aria-pressed={chosen === index}
+                      onClick={() => selectChord(index)}
+                    >
+                      {name}
+                    </button>
+                  </h3>
+                  <p className={styles.role} data-testid="role">
+                    {roleOf(chords, index, chordKey)}
+                  </p>
+                  <p className={styles.frets} data-testid="frets">
+                    {voicing
+                      ? voicing.frets.map((fret) => (fret === null ? 'x' : fret)).join(' ')
+                      : 'Sin digitación simple'}
+                  </p>
+                  <p className={styles.beatsCount} data-testid="chord-beats">
+                    {beats[index]} t
+                  </p>
+                </li>
+              );
+            })}
+            {!atMost && (
+              <li className={styles.addSlot}>
+                <button
+                  type="button"
+                  data-testid="add-chord"
+                  onClick={() => {
+                    setSelected(null);
+                    openPanel('sumar');
+                  }}
+                >
+                  + Sumar acorde
+                </button>
+              </li>
+            )}
+          </ul>
         </div>
-      </Slab>
+
+        <div className={styles.editor}>
+          {chosen === null ? (
+            <p className={styles.barHint}>
+              Tocá un acorde para oírlo, variarlo, moverlo o cambiar cuánto dura.
+            </p>
+          ) : (
+            <ChordBar
+              name={chords[chosen]!}
+              beats={beats[chosen]!}
+              first={chosen === 0}
+              last={chosen === chords.length - 1}
+              canRemove={!atLeast}
+              onPlay={() => strum(midisOfName(chords[chosen]!, voicings[chosen]), a4)}
+              onMove={(delta) => moveChord(chosen, chosen + delta)}
+              onBeats={(delta) => changeBeats(chosen, delta)}
+              onRemove={() => removeChord(chosen)}
+              onClose={() => setSelected(null)}
+            />
+          )}
+
+          <div ref={panel} className={styles.panel}>
+            <Tabs
+              label="Editar la progresión"
+              value={shownTab}
+              onChange={setTab}
+              options={[
+                ...(chosen === null ? [] : [{ value: 'acorde' as const, label: `Variar ${chords[chosen]}` }]),
+                { value: 'sumar', label: 'Sumar' },
+                { value: 'toda', label: 'Toda la progresión' },
+                { value: 'formulas', label: 'Fórmulas' },
+              ]}
+            />
+            <div className={styles.panelBody} data-testid={`panel-${shownTab}`}>
+              {shownTab === 'sumar' && (
+                <AddPanel
+                  chordKey={chordKey}
+                  count={chords.length}
+                  afterName={chosen === null ? null : chords[chosen]!}
+                  onAdd={addChord}
+                  onAddAtEnd={() => setSelected(null)}
+                />
+              )}
+              {shownTab === 'acorde' && chosen !== null && (
+                <ChordPanel
+                  name={chords[chosen]!}
+                  chordKey={chordKey}
+                  count={chords.length}
+                  onPick={(variation) => pickVariation(variation, chosen)}
+                />
+              )}
+              {shownTab === 'toda' && (
+                <WholePanel tonicName={TONICS[tonic]!} mode={mode} full={atMost} actions={whole} />
+              )}
+              {shownTab === 'formulas' && <FormulasPanel tonic={tonic} onPick={pickFormula} />}
+            </div>
+          </div>
+
+          <details className={styles.help}>
+            <summary>Cómo leer esto</summary>
+            <ul>
+              <li>Los números son trastes, de la 6.ª cuerda a la 1.ª. Una x es una cuerda que no se toca.</li>
+              <li>t son los tiempos que dura cada acorde.</li>
+              <li>
+                Los grados se miden contra la escala mayor: en minúscula los acordes menores, y con bemol lo
+                que queda abajo de esa escala.
+              </li>
+              <li>
+                Cambiar la tónica o el modo arriba no toca los acordes: solo cambia cómo se leen. Para
+                moverlos, usá Toda la progresión.
+              </li>
+              <li>El candado deja un acorde fijo cuando sorteás.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
 
       <Slab>
         <SlabHead title="Usar en la canción">

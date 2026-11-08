@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clicks, countSounds, goto, watchErrors } from './fixtures/helpers';
+import { clicks, countSounds, goto, openSection, watchErrors } from './fixtures/helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -86,15 +86,9 @@ test.describe('consigna', () => {
     await goto(page, '/consigna');
     await expect(page).toHaveURL(/\?t=/);
     const value = await rowValue(page, 'forma').textContent();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Cartas' })
-      .click();
+    await openSection(page, 'Cartas');
     await expect(page).toHaveURL(/\/cartas/);
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Consigna' })
-      .click();
+    await openSection(page, 'Consigna');
     await expect(rowValue(page, 'forma')).toHaveText(value!);
   });
 
@@ -220,10 +214,9 @@ test.describe('ritmo', () => {
     );
 
     await tab('Batería').click();
-    const tools = page.getByRole('navigation', { name: 'Herramientas' });
-    await tools.getByRole('link', { name: 'Cartas' }).click();
+    await openSection(page, 'Cartas');
     await expect(page).toHaveURL(/\/cartas/);
-    await tools.getByRole('link', { name: 'Ritmo' }).click();
+    await openSection(page, 'Ritmo');
     await tab('Euclid.').click();
     await expect(heading).toHaveText('E(4,8)');
     await tab('Batería').click();

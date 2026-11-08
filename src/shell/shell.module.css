@@ -106,12 +106,33 @@
   min-width: 0;
 }
 
+.about {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-small);
+  font-size: 13px;
+}
+
 .riskBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 16px;
   padding: 2px var(--gutter);
   border-bottom: var(--rule);
 }
+.backToConsigna {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-height: var(--touch-small);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .riskPicker {
   display: flex;
+  flex: 1 1 240px;
   flex-wrap: wrap;
   align-items: center;
   gap: 0 12px;
@@ -123,7 +144,7 @@
   text-transform: uppercase;
 }
 .riskPicker input {
-  flex: 1 1 140px;
+  flex: 1 1 70px;
   min-width: 0;
   height: var(--touch);
   margin: 0;
@@ -329,6 +350,23 @@
     grid-template-rows: minmax(0, 1fr);
   }
 }
+/* La hoja para imprimir o guardar en PDF: solo el contenido, sin el marco de la app. */
+@media print {
+  .shell,
+  .shell[data-fit='true'] {
+    display: block;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .topBar,
+  .nav,
+  .riskBar,
+  .dock {
+    display: none;
+  }
+}
+
 /* Pantalla baja: el riesgo solo importa al sortear, y esa altura hace falta para trabajar. */
 @media (max-height: 640px) {
   .shell[data-fit='true'] .riskBar {

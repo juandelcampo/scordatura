@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clicks, countSounds, goto, plucks, watchErrors } from './fixtures/helpers';
+import { clicks, countSounds, goto, openSection, plucks, watchErrors } from './fixtures/helpers';
 
 test.describe('escuchador', () => {
   test.beforeEach(async ({ page }) => {
@@ -172,10 +172,7 @@ test.describe('metrónomo y navegación', () => {
     await goto(page, '/ritmo');
     await page.locator('#metro-toggle').click();
     await page.getByRole('button', { name: 'Menú' }).click();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Cartas' })
-      .click();
+    await openSection(page, 'Cartas');
     await expect(page).toHaveURL(/\/cartas/);
     await expect(page.getByTestId('dock-ritmo')).toBeVisible();
     const before = await clicks(page);

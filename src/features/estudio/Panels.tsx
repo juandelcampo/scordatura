@@ -16,11 +16,11 @@ import {
 import { midiToNote } from '~/core/notes';
 import { DRUMS, DRUM_STEPS, randomDrumPattern, rhythmToDrums, type DrumConfig } from '~/core/rhythm';
 import { createRng, randomSeed } from '~/core/rng';
-import { rollHarmony, rollLyric, rollMelody, rollRhythm } from '~/core/rollers';
+import { rollHarmony, rollLyric, rollRhythm } from '~/core/rollers';
 import { DEFAULT_BARS, MAX_BARS } from '~/core/song';
 import { metricCount, wordsIn } from '~/core/spanish';
 import { DRUM_PRESETS } from '~/data/drums';
-import { publishToConsigna } from '~/shared/consigna';
+import { publishToConsigna, useBlocks } from '~/shared/consigna';
 import { PianoRoll } from '~/shared/PianoRoll';
 import { useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
@@ -74,18 +74,15 @@ export function FormPanel({
   onSelect: (block: number) => void;
   open: boolean;
 }) {
-  const blocks = useProject((s) => s.blocks);
-  const setBlocks = useProject((s) => s.setBlocks);
+  const blocks = useBlocks();
   const updateSection = useProject((s) => s.updateSection);
   const letter = blocks[selected] ?? 'A';
   const bars = useProject((s) => s.sections[letter]?.bars) ?? DEFAULT_BARS;
   const repeats = blocks.filter((block) => block === letter).length;
 
-  // Como en Forma: lo que se arma a mano también pasa a la consigna.
   const change = (next: string[], position: number) => {
-    setBlocks(next);
-    onSelect(position);
     publishToConsigna('forma', { blocks: next });
+    onSelect(position);
   };
   const move = (to: number) => {
     if (to < 0 || to >= blocks.length) return;
@@ -125,7 +122,6 @@ export function FormPanel({
           updateSection(letter, {
             chords: rollHarmony(roller()).value.chords,
             rhythm: rollRhythm(roller()).value,
-            melody: rollMelody(roller()).label,
             lyric: rollLyric(roller()).label,
           })
         }
@@ -347,7 +343,8 @@ export function ChordsPanel({
   const text = draft.base === joined ? draft.text : joined;
   const typed = splitChords(text);
   const invalid = typed.filter((name) => !parseChord(name));
-  const center = parts.harmony.tonic ?? parseChord(chords[0] ?? '')?.root ?? 0;
+  // La tónica de la consigna solo vale para sus acordes; los propios se miden desde el primero.
+  const center = (own ? undefined : parts.harmony.tonic) ?? parseChord(chords[0] ?? '')?.root ?? 0;
 
   return (
     <Panel

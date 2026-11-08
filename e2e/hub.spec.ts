@@ -1,38 +1,32 @@
 // Página principal, consigna como hub, sonido de armonía y drone.
 import { expect, test, type Page } from '@playwright/test';
-import { clicks, countSounds, goto, plucks, watchErrors } from './fixtures/helpers';
+import { clicks, countSounds, goto, openSection, plucks, watchErrors } from './fixtures/helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
 const row = (page: Page, id: string) => page.locator(`[data-row="${id}"]`);
 
-test.describe('página principal', () => {
+test.describe('acerca de', () => {
   test('explica la idea, se lee sin JavaScript y lleva a la consigna', async ({ page, request }) => {
-    const html = await (await request.get('/')).text();
+    const html = await (await request.get('/acerca')).text();
     expect(html).toContain('Tus canciones se parecen entre sí');
     expect(html).toContain('No compone por vos');
 
     const errors = watchErrors(page);
-    await goto(page, '/');
+    await goto(page, '/acerca');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('canciones');
     await expect(page.getByRole('slider', { name: /Seguro/ })).toHaveCount(0);
     await page.getByTestId('cta').click();
-    await expect(page).toHaveURL(/\/consigna/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Consigna');
     expect(errors).toEqual([]);
   });
 
-  test('llega a cada herramienta y el logo vuelve', async ({ page }) => {
-    await goto(page, '/');
-    await page
-      .getByRole('main')
-      .getByRole('link', { name: /^La mano Drone/ })
-      .click();
+  test('llega a cada herramienta y el logo vuelve a la consigna', async ({ page }) => {
+    await goto(page, '/herramientas');
+    await page.getByRole('main').getByRole('link', { name: 'Drone' }).click();
     await expect(page).toHaveURL(/\/drone/);
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Scordatura' })
-      .click();
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('canciones');
+    await openSection(page, 'Scordatura');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Consigna');
   });
 });
 
@@ -85,10 +79,7 @@ test.describe('consigna como hub', () => {
     await goto(page, '/consigna');
     await page.getByTestId('mini-lyric').fill('En un lugar de la Mancha');
     await expect(page.getByTestId('mini-lyric-count')).toContainText('8');
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Letras' })
-      .click();
+    await openSection(page, 'Letras');
     await expect(page.getByTestId('lyric-text')).toHaveValue('En un lugar de la Mancha');
   });
 
@@ -98,7 +89,7 @@ test.describe('consigna como hub', () => {
     await row(page, 'forma')
       .getByRole('button', { name: /Usar esta forma|Es tu forma/ })
       .click();
-    await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name: 'Forma' }).click();
+    await openSection(page, 'Forma');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(value.replaceAll(' ', ''));
   });
 
@@ -140,10 +131,7 @@ test.describe('drone', () => {
   test('sigue sonando al cambiar de herramienta y se para desde cualquiera', async ({ page }) => {
     await goto(page, '/drone');
     await page.locator('#drone-toggle').click();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Cartas' })
-      .click();
+    await openSection(page, 'Cartas');
     await expect(page.getByTestId('dock-drone')).toBeVisible();
     await page.getByRole('button', { name: 'Parar el drone' }).click();
     await expect(page.getByTestId('dock-drone')).toHaveAttribute('data-running', 'false');

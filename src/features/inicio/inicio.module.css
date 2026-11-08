@@ -43,11 +43,6 @@
   letter-spacing: -0.025em;
   overflow-wrap: anywhere;
 }
-.note {
-  margin: -8px 0 16px;
-  color: var(--muted);
-}
-
 .steps {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -77,84 +72,6 @@
   font-size: 17px;
 }
 
-.example {
-  margin-top: 16px;
-  border: var(--rule);
-}
-.exampleTitle {
-  padding: 6px 12px;
-  background: var(--ink);
-  color: var(--paper);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.example dl > div {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 10px;
-  padding: 7px 12px;
-  border-top: 1px solid var(--ink);
-}
-.example dt {
-  font-size: 12px;
-  text-transform: uppercase;
-}
-.example dd {
-  font-weight: 700;
-}
-
-.tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  margin: 0;
-  padding: 0;
-  border-top: var(--rule);
-  border-left: var(--rule);
-  list-style: none;
-}
-.tools li {
-  min-width: 0;
-  border-right: var(--rule);
-  border-bottom: var(--rule);
-}
-.tools a {
-  display: grid;
-  gap: 4px;
-  height: 100%;
-  padding: 14px;
-  text-decoration: none;
-}
-.tools a:hover {
-  background: var(--ink);
-  color: var(--paper);
-}
-.tools small {
-  font-size: 12px;
-  text-transform: uppercase;
-}
-.tools strong {
-  font: 900 26px/1.05 var(--heavy);
-  letter-spacing: -0.02em;
-}
-.tools span {
-  font-size: 14px;
-}
-
-.principles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 18px 24px;
-}
-.principles dt {
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.principles dd {
-  margin-top: 2px;
-  color: var(--muted);
-}
-
 .closing {
   padding: clamp(28px, 6cqi, 60px) var(--gutter);
 }
@@ -162,13 +79,6 @@
   max-width: 24ch;
   font: 900 clamp(24px, 5cqi, 44px)/1.08 var(--heavy);
   letter-spacing: -0.02em;
-}
-
-/* Son nueve herramientas: de a tres no queda ninguna suelta. */
-@container main (min-width: 620px) {
-  .tools {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @container main (min-width: 760px) {

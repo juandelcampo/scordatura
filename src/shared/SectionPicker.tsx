@@ -1,9 +1,10 @@
 // Elige a qué sección de la forma va lo que se está haciendo.
+import { useBlocks } from './consigna';
 import { letterList, useProject } from './project';
 import styles from './ui/ui.module.css';
 
 export function SectionPicker({ label = 'Sección' }: { label?: string }) {
-  const blocks = useProject((s) => s.blocks);
+  const blocks = useBlocks();
   const active = useProject((s) => s.active);
   const setActive = useProject((s) => s.setActive);
   return (

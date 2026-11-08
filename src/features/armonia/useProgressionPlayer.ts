@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAudio } from '~/audio/engine';
 import { stopInstrument, strum } from '~/audio/instrument';
+import { song } from '~/audio/song';
 
 export interface PlayerInput {
   midis: number[][];
@@ -36,6 +37,8 @@ export function useProgressionPlayer(input: PlayerInput) {
   }, [clearTimers]);
 
   const play = () => {
+    // Dos progresiones a la vez no se entienden: el tema cede.
+    if (song.getState().running) song.stop();
     const { ctx } = getAudio();
     const after = (seconds: number, action: () => void) => {
       timers.current.push(setTimeout(action, Math.max(0, seconds) * 1000));

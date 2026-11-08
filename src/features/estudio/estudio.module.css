@@ -593,3 +593,30 @@
     overflow: visible;
   }
 }
+
+/* Para escuchar: las pistas ocupan la pantalla, sin editores ni mezcla. "Editar" trae todo lo demás. */
+.session {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.session [role='status'] {
+  max-width: 28ch;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.studio[data-editing='false'] {
+  --row: clamp(42px, 11dvh, 104px);
+}
+.studio[data-editing='false'] .panels,
+.studio[data-editing='false'] .laneButton,
+.studio[data-editing='false'] .headFader {
+  display: none;
+}
+/* En un celular editando no entra todo: lo de grabar y bajar vuelve cuando se deja de editar. */
+@container main (max-width: 599px) {
+  .studio[data-editing='true'] .session {
+    display: none;
+  }
+}

@@ -18,20 +18,25 @@ import type { DroneConfig } from '~/core/drone';
 import type { RhythmConfig } from '~/core/rhythm';
 import { RISK_NAMES } from '~/core/roll';
 import { useConsigna } from '~/shared/consigna';
+import { ExportMidiButton } from '~/shared/ExportMidiButton';
 import { Mixer } from '~/shared/Fader';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
 import { Button, PageTitle, Slab } from '~/shared/ui/ui';
+import { useHydrated } from '~/shared/useHydrated';
+import { CartaSuelta } from './CartaSuelta';
 import styles from './consigna.module.css';
 import { MiniDrone, MiniForm, MiniHarmony, MiniLyric, MiniMelody, MiniRhythm, MiniTuning } from './Minis';
 
 export const meta: MetaFunction = () => [
-  { title: 'Consigna para componer · Scordatura' },
+  { title: 'Scordatura: una consigna para componer fuera de tus costumbres' },
   {
     name: 'description',
     content:
-      'Una consigna para componer fuera de tus costumbres, con todo a mano: afinación, ritmo, armonía, melodía, letra, forma, una carta y un drone. Se escucha ahí mismo.',
+      'Sorteá restricciones con teoría real: afinación, ritmo, armonía, melodía, letra, forma, una carta y un drone. Se escuchan ahí mismo, y la música la hacés vos.',
   },
+  // Se llega por / y por /consigna, y es una sola página.
+  { tagName: 'link', rel: 'canonical', href: '/' },
 ];
 
 export default function ConsignaRoute() {
@@ -44,6 +49,7 @@ export default function ConsignaRoute() {
   const redo = useConsigna((s) => s.redo);
   const risk = useSettings((s) => s.risk);
   const [params, setParams] = useSearchParams();
+  const hydrated = useHydrated();
   const [copied, setCopied] = useState(false);
   const [mixerOpen, setMixerOpen] = useState(false);
   const loaded = useRef(false);
@@ -140,18 +146,42 @@ export default function ConsignaRoute() {
       <Slab>
         <PageTitle eyebrow={`Consigna Nº ${number}`} title="Consigna">
           <p>
-            Lo que tenés que respetar en esta canción. Escuchá cada parte acá mismo, trabá lo que te sirva y
-            sorteá de nuevo el resto. Lo que elijas en cada herramienta aparece acá.
+            Lo que tenés que respetar en esta canción. Trabá lo que te sirva y sorteá de nuevo el resto.
+            Después tocá sobre la base y grabá: la idea queda en tu Diario, con esta consigna.{' '}
+            <Link to="/acerca" data-print="hide">
+              ¿Qué es esto?
+            </Link>
           </p>
         </PageTitle>
-        <div className={styles.extras}>
+        <div className={styles.session} data-print="hide">
+          <Link className={styles.listen} to="/estudio" data-testid="listen">
+            ▶ Escuchar todo
+          </Link>
           <RecordButton />
-          <Button onClick={share}>{copied ? 'Link copiado' : 'Copiar link'}</Button>
-          <Button ariaExpanded={mixerOpen} onClick={() => setMixerOpen(!mixerOpen)} id="mixer-toggle">
+        </div>
+        <div className={styles.extras} data-print="hide">
+          <CartaSuelta />
+          <Button variant="mini" onClick={share}>
+            {copied ? 'Link copiado' : 'Copiar link'}
+          </Button>
+          <ExportMidiButton variant="mini" />
+          <Button variant="mini" id="print-sheet" onClick={() => window.print()}>
+            Hoja en PDF
+          </Button>
+          <Button
+            variant="mini"
+            ariaExpanded={mixerOpen}
+            onClick={() => setMixerOpen(!mixerOpen)}
+            id="mixer-toggle"
+          >
             Volumen
           </Button>
         </div>
-        {mixerOpen && <Mixer />}
+        {mixerOpen && (
+          <div data-print="hide">
+            <Mixer />
+          </div>
+        )}
       </Slab>
 
       <ol className={styles.rows}>
@@ -172,7 +202,7 @@ export default function ConsignaRoute() {
                   {row.name}
                   {state.override && <span className={styles.chosenTag}>Tu elección</span>}
                 </h2>
-                <div className={styles.rowActions}>
+                <div className={styles.rowActions} data-print="hide">
                   <Button
                     variant="mini"
                     ariaPressed={state.locked}
@@ -196,19 +226,25 @@ export default function ConsignaRoute() {
                   <strong>Regla →</strong> {result.rule}
                   {foreign && ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)`}
                 </p>
-                {mini(row.id, index)}
-                {result.href && (
-                  <Link className={styles.rowLink} to={result.href}>
-                    Abrir {row.name} →
-                  </Link>
-                )}
+                <div className={styles.rowTools} data-print="hide">
+                  {mini(row.id, index)}
+                  {result.href && (
+                    <Link className={styles.rowLink} to={result.href}>
+                      Abrir {row.name} →
+                    </Link>
+                  )}
+                </div>
               </div>
             </li>
           );
         })}
       </ol>
 
-      <div className={styles.rollBar}>
+      <p className={styles.sheetLink}>
+        Para volver a abrirla: {hydrated ? window.location.origin : ''}/?t={code}
+      </p>
+
+      <div className={styles.rollBar} data-print="hide">
         <Button onClick={undo} id="undo" disabled={!canUndo} ariaLabel="Volver a la consigna anterior">
           ↩ Volver
         </Button>

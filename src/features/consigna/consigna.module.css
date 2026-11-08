@@ -1,9 +1,86 @@
+/* El camino de la sesión pesa más que lo demás: primero se escucha y se graba. */
+.session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+}
+.listen {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 6px 16px;
+  border: var(--rule);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 900 15px/1.1 var(--heavy);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.listen:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
 .extras {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.looseCard {
+  /* Debajo de todos los botones: no parte la fila en dos. */
+  order: 1;
+  flex-basis: 100%;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: var(--rule);
+}
+.looseText {
+  font: 900 clamp(17px, 2.6cqi, 22px)/1.2 var(--heavy);
+  letter-spacing: -0.01em;
+}
+.looseNote {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.looseActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+
+/* El enlace queda al pie, y las losas vecinas terminan alineadas: esta caja no agrega nada al armado. */
+.rowTools {
+  display: contents;
+}
+
+.sheetLink {
+  display: none;
+}
+
+/* La hoja: lo que hay que respetar y su regla. Lo que sirve en pantalla no va al papel. */
+@media print {
+  .row {
+    break-inside: avoid;
+    padding-block: 8px;
+    background: none;
+  }
+  .row[data-locked='true'] {
+    background: none;
+    box-shadow: none;
+  }
+  .sheetLink {
+    display: block;
+    padding: 10px var(--gutter);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
 }
 
 .rows {

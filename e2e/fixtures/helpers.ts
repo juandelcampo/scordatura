@@ -49,3 +49,33 @@ export async function goto(page: Page, path: string) {
   await waitForApp(page);
   await expect(page.locator('main')).toBeVisible();
 }
+
+/** Navega como una persona: el menú tiene tres entradas, y lo demás se abre desde Herramientas. */
+export async function openSection(page: Page, name: string) {
+  const nav = page.getByRole('navigation', { name: 'Principal' });
+  if (['Consigna', 'Diario', 'Herramientas', 'Scordatura'].includes(name)) {
+    await nav.getByRole('link', { name, exact: true }).click();
+    return;
+  }
+  await nav.getByRole('link', { name: 'Herramientas', exact: true }).click();
+  await page.waitForURL(/\/herramientas/);
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: new RegExp(`^(el |las )?${name}$`, 'i') })
+    .click();
+}
+
+/** Muestra los editores del Estudio, sin dejar el foco en el botón: la barra espaciadora toca y para. */
+export async function editStudio(page: Page) {
+  const toggle = page.locator('#song-edit');
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await toggle.blur();
+}
+
+/** Abre el Estudio con los editores a la vista. */
+export async function gotoStudioEditing(page: Page) {
+  await goto(page, '/estudio');
+  await editStudio(page);
+}

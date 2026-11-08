@@ -1,6 +1,14 @@
 // El Estudio: todo a mano en una pantalla, y lo que se toca suena y queda en el proyecto.
 import { expect, test } from '@playwright/test';
-import { clicks, countSounds, goto, plucks, watchErrors } from './fixtures/helpers';
+import {
+  clicks,
+  countSounds,
+  goto,
+  gotoStudioEditing,
+  openSection,
+  plucks,
+  watchErrors,
+} from './fixtures/helpers';
 
 const FITS = [
   { width: 1920, height: 1080 },
@@ -16,9 +24,22 @@ for (const viewport of FITS) {
   test.describe(`${viewport.width}×${viewport.height}`, () => {
     test.use({ viewport });
 
+    test('abre para escuchar: las pistas a la vista y sin editores ni mezcla', async ({ page }) => {
+      await goto(page, '/estudio');
+      await expect(page.getByTestId('song-tracks')).toBeInViewport();
+      await expect(page.locator('#song-edit')).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByTestId('song-drums')).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Silenciar Batería' })).toBeHidden();
+      const { scroll, client } = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollHeight,
+        client: document.documentElement.clientHeight,
+      }));
+      expect(scroll).toBeLessThanOrEqual(client);
+    });
+
     test('entra entero: la página no se desplaza', async ({ page }) => {
       const errors = watchErrors(page);
-      await goto(page, '/estudio');
+      await gotoStudioEditing(page);
       const { scroll, client } = await page.evaluate(() => ({
         scroll: document.documentElement.scrollHeight,
         client: document.documentElement.clientHeight,
@@ -36,7 +57,7 @@ test.describe('con todos los editores a la vista', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test('no hace falta desplazar ningún panel', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     for (const panel of ['bateria', 'acordes', 'drone', 'letra', 'melodia']) {
       const locator = page.locator(`[data-panel="${panel}"]`);
       await expect(locator).toBeInViewport({ ratio: 1 });
@@ -50,7 +71,7 @@ test.describe('con todos los editores a la vista', () => {
 
   test('tocar programa sonido, y parar lo corta', async ({ page }) => {
     await countSounds(page);
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await page.locator('[data-track="bombo"] [data-step="0"]').click();
     await page.locator('#song-play').click();
     await expect(page.getByRole('button', { name: 'Parar el tema' })).toBeVisible();
@@ -69,21 +90,16 @@ test.describe('con todos los editores a la vista', () => {
       .first()
       .click();
     await expect(page.getByTestId('dock-ritmo')).toBeVisible();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Estudio' })
-      .click();
+    await openSection(page, 'Estudio');
+    await editStudio(page);
     await page.locator('#song-play').click();
     await expect(page.getByTestId('dock-ritmo')).toBeHidden();
   });
 
   test('sigue sonando al navegar, y se para desde la barra de abajo', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await page.locator('#song-play').click();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Cartas' })
-      .click();
+    await openSection(page, 'Cartas');
     const dock = page.getByTestId('dock-estudio');
     await expect(dock).toBeVisible();
     await dock.getByRole('button', { name: 'Parar el tema' }).click();
@@ -91,7 +107,7 @@ test.describe('con todos los editores a la vista', () => {
   });
 
   test('silenciar y hacer solo cambian lo que se oye', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     const mute = page.getByRole('button', { name: 'Silenciar Batería' });
     await mute.click();
     await expect(mute).toHaveAttribute('aria-pressed', 'true');
@@ -114,10 +130,8 @@ test.describe('con todos los editores a la vista', () => {
 
   test('editar queda por sección, y sobrevive a recargar', async ({ page }) => {
     await goto(page, '/forma?f=AB');
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Estudio' })
-      .click();
+    await openSection(page, 'Estudio');
+    await editStudio(page);
 
     // Sección A
     await page.getByTestId('song-chords').fill('Dm G');
@@ -137,7 +151,7 @@ test.describe('con todos los editores a la vista', () => {
   });
 
   test('cuenta las sílabas, y avisa de un acorde que no existe', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await page.getByTestId('song-lyric').fill('Hola');
     await expect(page.getByTestId('song-lyric-count')).toContainText('Sílabas: 2');
     await page.getByTestId('song-chords').fill('Dm Qx7');
@@ -147,7 +161,7 @@ test.describe('con todos los editores a la vista', () => {
   });
 
   test('la forma se edita ahí mismo y llega a Forma', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await page.getByTestId('song-add-block').selectOption('C');
     await expect(page.getByRole('button', { name: /^Bloque 5: sección C/ })).toBeVisible();
     await expect(page.getByTestId('form-title')).toContainText('Sección C');
@@ -158,7 +172,7 @@ test.describe('con todos los editores a la vista', () => {
   });
 
   test('el drone se apaga por sección y su cambio llega a la consigna', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     const cell = page.getByRole('button', { name: 'Drone en la sección A, bloque 1' });
     await expect(cell).toHaveAttribute('aria-pressed', 'true');
     await cell.click();
@@ -170,15 +184,12 @@ test.describe('con todos los editores a la vista', () => {
     );
     await page.getByTestId('song-drone-stack').selectOption('tritono');
     await expect(page.getByTestId('song-drone')).toContainText('Tritono');
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Consigna' })
-      .click();
+    await openSection(page, 'Consigna');
     await expect(page.locator('[data-row="drone"]')).toContainText('Tritono');
   });
 
   test('la barra espaciadora toca y para, salvo escribiendo', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await page.locator('main h1').evaluate((element) => (element as HTMLElement).blur());
     await page.keyboard.press('Space');
     await expect(page.getByRole('button', { name: 'Parar el tema' })).toBeVisible();
@@ -193,7 +204,7 @@ test.describe('en el celular más chico', () => {
   test.use({ viewport: { width: 320, height: 568 } });
 
   test('una batería larga no achica las casillas', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     for (const steps of ['24', '32', '16']) {
       await page.getByTestId('song-drum-steps').selectOption(steps);
       const box = await page.locator('[data-track="bombo"] [data-step="0"]').boundingBox();
@@ -207,7 +218,7 @@ test.describe('en el celular', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('tocar una pista abre su editor', async ({ page }) => {
-    await goto(page, '/estudio');
+    await gotoStudioEditing(page);
     await expect(page.locator('[data-panel="bateria"]')).toBeVisible();
     await expect(page.locator('[data-panel="letra"]')).toBeHidden();
     await page.getByRole('button', { name: 'Editar Letra' }).click();
@@ -220,10 +231,8 @@ test.describe('en el celular', () => {
   test('muchos bloques se desplazan dentro de las pistas, no la página', async ({ page }) => {
     await goto(page, '/forma?f=ABCDEFGHABCDEFGH');
     await page.getByRole('button', { name: 'Menú' }).click();
-    await page
-      .getByRole('navigation', { name: 'Herramientas' })
-      .getByRole('link', { name: 'Estudio' })
-      .click();
+    await openSection(page, 'Estudio');
+    await editStudio(page);
     await expect(page.getByTestId('song-tracks')).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

@@ -1,6 +1,6 @@
 // Los paneles que editan la progresión. No guardan nada: muestran opciones y avisan qué se eligió.
 import { useState } from 'react';
-import { degreeOf, parseChord } from '~/core/chords';
+import { degreeOf, MAX_CHORD_BEATS, parseChord } from '~/core/chords';
 import { MODES, type ModeId } from '~/core/harmony';
 import {
   borrowedChords,
@@ -125,7 +125,7 @@ export function AddPanel({
         <h3>Cualquier otro</h3>
         <div className={styles.typed}>
           <label className={styles.tuningField}>
-            <span>Acorde</span>
+            <span className="sr-only">Acorde</span>
             <input
               value={typed}
               aria-invalid={invalid}
@@ -153,6 +153,75 @@ export function AddPanel({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Los controles del acorde elegido: uno solo a la vista, no los de todos a la vez. */
+export function ChordBar({
+  name,
+  beats,
+  first,
+  last,
+  canRemove,
+  onPlay,
+  onMove,
+  onBeats,
+  onRemove,
+  onClose,
+}: {
+  name: string;
+  beats: number;
+  first: boolean;
+  last: boolean;
+  canRemove: boolean;
+  onPlay: () => void;
+  onMove: (delta: number) => void;
+  onBeats: (delta: number) => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className={styles.bar} role="group" aria-label={`Acorde elegido: ${name}`} data-testid="chord-bar">
+      <strong className={styles.barName}>{name}</strong>
+      <Button variant="mini" ariaLabel={`Oír ${name}`} onClick={onPlay}>
+        ▶ Oír
+      </Button>
+      <span className={styles.barGroup}>
+        <Button variant="mini" ariaLabel={`Mover ${name} antes`} disabled={first} onClick={() => onMove(-1)}>
+          ← Antes
+        </Button>
+        <Button variant="mini" ariaLabel={`Mover ${name} después`} disabled={last} onClick={() => onMove(1)}>
+          Después →
+        </Button>
+      </span>
+      <span className={styles.barGroup}>
+        <Button
+          variant="mini"
+          ariaLabel={`Acortar ${name}`}
+          disabled={beats === 1}
+          onClick={() => onBeats(-1)}
+        >
+          −
+        </Button>
+        <span className={styles.barBeats}>
+          {beats} {beats === 1 ? 'tiempo' : 'tiempos'}
+        </span>
+        <Button
+          variant="mini"
+          ariaLabel={`Alargar ${name}`}
+          disabled={beats === MAX_CHORD_BEATS}
+          onClick={() => onBeats(1)}
+        >
+          +
+        </Button>
+      </span>
+      <Button variant="mini" ariaLabel={`Sacar ${name}`} disabled={!canRemove} onClick={onRemove}>
+        ✕ Sacar
+      </Button>
+      <Button variant="mini" onClick={onClose}>
+        Listo
+      </Button>
     </div>
   );
 }

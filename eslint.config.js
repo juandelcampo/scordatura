@@ -3,6 +3,8 @@ import tseslint from 'typescript-eslint';
 
 const FEATURES = [
   'inicio',
+  'consigna',
+  'herramientas',
   'estudio',
   'drone',
   'afinador',

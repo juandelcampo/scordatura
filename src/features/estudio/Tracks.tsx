@@ -4,6 +4,7 @@ import { song } from '~/audio/song';
 import { describeDrone } from '~/core/drone';
 import { isMuted, melodyInBlock, type Lane, type Song, type SongBlock } from '~/core/song';
 import { Fader } from '~/shared/Fader';
+import { publishToConsigna, useBlocks } from '~/shared/consigna';
 import { useProject } from '~/shared/project';
 import type { ChannelId } from '~/shared/settings';
 import { useSong, type ConsignaParts } from '~/shared/song';
@@ -177,9 +178,8 @@ function usePlayhead(
 
 export function Tracks({ selected, onSelect, panel, onPanel, parts }: TracksProps) {
   const plan = useSong();
-  const blocks = useProject((s) => s.blocks);
+  const blocks = useBlocks();
   const sections = useProject((s) => s.sections);
-  const setBlocks = useProject((s) => s.setBlocks);
   const updateSection = useProject((s) => s.updateSection);
   const scroller = useRef<HTMLDivElement>(null);
   const line = useRef<HTMLDivElement>(null);
@@ -197,10 +197,14 @@ export function Tracks({ selected, onSelect, panel, onPanel, parts }: TracksProp
     const next = [...blocks];
     const [item] = next.splice(dragging.current, 1);
     next.splice(target, 0, item!);
-    setBlocks(next);
+    publishToConsigna('forma', { blocks: next }, { continuing: dragged.current });
     onSelect(target);
     dragging.current = target;
     dragged.current = true;
+  };
+
+  const endDrag = () => {
+    dragging.current = null;
   };
 
   const open = (index: number, id: PanelId) => {
@@ -251,11 +255,10 @@ export function Tracks({ selected, onSelect, panel, onPanel, parts }: TracksProp
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
             onPointerMove={onPointerMove}
-            onPointerUp={() => {
-              dragging.current = null;
-            }}
+            onPointerUp={endDrag}
             onPointerCancel={() => {
-              dragging.current = null;
+              endDrag();
+              dragged.current = false;
             }}
           >
             {block.letter}

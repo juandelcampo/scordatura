@@ -1,5 +1,6 @@
 // Botón de grabar: guarda la nota de voz pegada a la consigna y a la sección donde nació.
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { startRecording, type Recording, type RecordError } from '~/audio/recorder';
 import { addEntry } from './journal';
 import { currentConsigna } from './consigna';
@@ -17,6 +18,7 @@ const MESSAGES: Record<RecordError, string> = {
 export function RecordButton() {
   const [seconds, setSeconds] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const recording = useRef<Recording | null>(null);
 
   useEffect(() => {
@@ -52,9 +54,11 @@ export function RecordButton() {
         section,
       });
       setMessage('Guardada en el diario.');
+      setSaved(true);
       return;
     }
     setMessage(null);
+    setSaved(false);
     const started = await startRecording();
     if (typeof started === 'string') {
       setMessage(MESSAGES[started]);
@@ -69,7 +73,15 @@ export function RecordButton() {
       <Button onClick={() => void toggle()} id="record">
         {seconds === null ? '● Grabar idea' : `■ Terminar (${seconds} s)`}
       </Button>
-      <span role="status">{message}</span>
+      <span role="status">
+        {message}
+        {saved && (
+          <>
+            {' '}
+            <Link to="/diario">Ver en el Diario →</Link>
+          </>
+        )}
+      </span>
     </div>
   );
 }

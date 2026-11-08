@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { drone } from '~/audio/drone';
 import { setVolume, type Channel } from '~/audio/engine';
 import { metronome } from '~/audio/metronome';
@@ -13,21 +13,23 @@ import { useSong } from '~/shared/song';
 import { Button, Segmented, Stepper } from '~/shared/ui/ui';
 import styles from './shell.module.css';
 
-const SECTIONS: ReadonlyArray<{ label: string; to: string; end?: boolean }> = [
-  { label: 'Consigna', to: '/consigna' },
-  { label: 'Estudio', to: '/estudio' },
-  { label: 'Afinador', to: '/afinador' },
-  { label: 'Ritmo', to: '/ritmo' },
-  { label: 'Drone', to: '/drone' },
-  { label: 'Armonía', to: '/armonia' },
-  { label: 'Melodía', to: '/melodia' },
-  { label: 'Letras', to: '/letras' },
-  { label: 'Cartas', to: '/cartas' },
-  { label: 'Forma', to: '/forma' },
-  { label: 'Diario', to: '/diario' },
+// Una sesión tiene un solo camino: se sortea, se toca y queda en el Diario. Lo demás cuelga de ahí.
+const SECTIONS: ReadonlyArray<{ label: string; to: string; routes: readonly string[] }> = [
+  { label: 'Consigna', to: '/', routes: ['/consigna', '/estudio', '/cartas'] },
+  { label: 'Diario', to: '/diario', routes: [] },
+  {
+    label: 'Herramientas',
+    to: '/herramientas',
+    routes: ['/afinador', '/ritmo', '/drone', '/armonia', '/melodia', '/letras', '/forma'],
+  },
 ];
 
-function Navigation() {
+/** Acá no se sortea nada: el slider de riesgo no haría nada. */
+const NO_RISK: readonly string[] = ['/acerca', '/herramientas', '/diario'];
+
+const inRoute = (pathname: string, route: string) => pathname === route || pathname.startsWith(`${route}/`);
+
+function Navigation({ pathname }: { pathname: string }) {
   const notation = useSettings((s) => s.notation);
   const a4 = useSettings((s) => s.a4);
   const set = useSettings((s) => s.set);
@@ -36,22 +38,29 @@ function Navigation() {
       <ul className={styles.navList}>
         {SECTIONS.map((section, index) => (
           <li key={section.label}>
-            <NavLink
+            <Link
               to={section.to}
-              end={section.end}
               className={styles.navItem}
               aria-label={section.label}
+              aria-current={
+                pathname === section.to || section.routes.some((route) => inRoute(pathname, route))
+                  ? 'page'
+                  : undefined
+              }
               title={section.label}
             >
               <span className={styles.navNumber} aria-hidden="true">
                 {String(index + 1).padStart(2, '0')}
               </span>
               <span className={styles.navLabel}>{section.label}</span>
-            </NavLink>
+            </Link>
           </li>
         ))}
       </ul>
       <div className={styles.navSettings}>
+        <Link to="/acerca" className={styles.about}>
+          Qué es Scordatura
+        </Link>
         <Fader channel="master" />
         <Segmented
           label="Nombres de las notas"
@@ -74,12 +83,17 @@ function Navigation() {
   );
 }
 
-/** Qué tan lejos sortea cada herramienta. Siempre está en el mismo lugar. */
-function RiskBar() {
+/** Qué tan lejos sortea cada herramienta. Siempre está en el mismo lugar, junto al camino de vuelta. */
+function RiskBar({ onConsigna }: { onConsigna: boolean }) {
   const risk = useSettings((s) => s.risk);
   const set = useSettings((s) => s.set);
   return (
     <div className={styles.riskBar}>
+      {!onConsigna && (
+        <Link to="/" className={styles.backToConsigna}>
+          ← Consigna
+        </Link>
+      )}
       <label className={styles.riskPicker}>
         <span className={styles.axisLabel}>
           Seguro ↔ raro: <strong>{RISK_NAMES[risk]}</strong>
@@ -202,9 +216,16 @@ export default function AppShell() {
   const volumes = useSettings((s) => s.volumes);
   const a4 = useSettings((s) => s.a4);
   const set = useSettings((s) => s.set);
-  const { pathname } = useLocation();
+  // Las páginas estáticas se generan con la barra final (/acerca/): sin esto, el HTML no coincide.
+  const { pathname: rawPathname } = useLocation();
+  const pathname = rawPathname.replace(/\/+$/, '') || '/';
   const inStudio = pathname.startsWith('/estudio');
-  const songRunning = useSyncExternalStore(song.subscribe, () => song.getState().running, () => false);
+  const onConsigna = pathname === '/' || pathname === '/consigna';
+  const songRunning = useSyncExternalStore(
+    song.subscribe,
+    () => song.getState().running,
+    () => false,
+  );
 
   useEffect(() => {
     document.documentElement.dataset.ready = 'true';
@@ -253,7 +274,7 @@ export default function AppShell() {
         </button>
       </header>
 
-      <nav id="main-nav" className={styles.nav} data-open={menuOpen} aria-label="Herramientas">
+      <nav id="main-nav" className={styles.nav} data-open={menuOpen} aria-label="Principal">
         <div className={styles.railHead}>
           <Link to="/" className={styles.railBrand} aria-label="Scordatura">
             <span className={styles.railBrandFull}>Scordatura</span>
@@ -272,11 +293,11 @@ export default function AppShell() {
             {collapsed ? '→' : '←'}
           </button>
         </div>
-        <Navigation />
+        <Navigation pathname={pathname} />
       </nav>
 
       <div className={styles.column}>
-        {pathname !== '/' && <RiskBar />}
+        {!NO_RISK.includes(pathname) && <RiskBar onConsigna={onConsigna} />}
         <main className={styles.main}>
           <Outlet />
         </main>

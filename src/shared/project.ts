@@ -1,5 +1,5 @@
-// El proyecto: lo que conecta las herramientas. La forma es el esqueleto, y cada letra
-// (A, B, C...) guarda su progresión, su ritmo, su consigna y su letra.
+// El proyecto: lo que la consigna no dice. La forma y el tempo son de la consigna; acá cada letra
+// (A, B, C...) guarda su letra, sus compases y, si se apartó de la consigna, su progresión y su ritmo.
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { isChordBeats } from '~/core/chords';
@@ -25,18 +25,16 @@ export interface Section {
 export type VideoMarks = Record<string, Record<number, number>>;
 
 interface Project {
-  blocks: string[];
   sections: Record<string, Section>;
   active: string;
   marks: VideoMarks;
-  /** El tempo del tema en el Estudio. Sin él, se usa el del ritmo de la primera sección. */
-  tempo: number | null;
   mix: SongMix;
-  setBlocks: (blocks: string[]) => void;
+  /** Forma y tempo de cuando se guardaban acá. Los levanta la consigna al abrir, y no se vuelven a guardar. */
+  savedBlocks?: string[];
+  savedTempo?: number;
   setActive: (letter: string) => void;
   updateSection: (letter: string, patch: Partial<Section>) => void;
   setMark: (video: string, block: number, seconds: number) => void;
-  setTempo: (tempo: number) => void;
   setLane: (lane: Lane, patch: { mute?: boolean; solo?: boolean }) => void;
 }
 
@@ -89,9 +87,10 @@ function sanitizeMix(saved: unknown): SongMix {
   return clean;
 }
 
-function sanitize(saved: Partial<Project>): Partial<Project> {
+function sanitize(saved: Partial<Project> & { blocks?: unknown; tempo?: unknown }): Partial<Project> {
   const clean: Partial<Project> = {};
-  if (isValidBlocks(saved.blocks)) clean.blocks = saved.blocks;
+  if (isValidBlocks(saved.blocks)) clean.savedBlocks = saved.blocks;
+  if (typeof saved.tempo === 'number' && Number.isFinite(saved.tempo)) clean.savedTempo = clampBpm(saved.tempo);
   if (saved.sections && typeof saved.sections === 'object') {
     clean.sections = Object.fromEntries(
       Object.entries(saved.sections)
@@ -101,7 +100,6 @@ function sanitize(saved: Partial<Project>): Partial<Project> {
   }
   if (typeof saved.active === 'string' && LETTER.test(saved.active)) clean.active = saved.active;
   if (saved.marks && typeof saved.marks === 'object') clean.marks = saved.marks;
-  if (typeof saved.tempo === 'number' && Number.isFinite(saved.tempo)) clean.tempo = clampBpm(saved.tempo);
   clean.mix = sanitizeMix(saved.mix);
   return clean;
 }
@@ -109,17 +107,10 @@ function sanitize(saved: Partial<Project>): Partial<Project> {
 export const useProject = create<Project>()(
   persist(
     (set) => ({
-      blocks: ['A', 'A', 'B', 'A'],
       sections: {},
       active: 'A',
       marks: {},
-      tempo: null,
       mix: {},
-      setBlocks: (blocks) =>
-        set((state) => ({
-          blocks,
-          active: blocks.includes(state.active) ? state.active : (blocks[0] ?? 'A'),
-        })),
       setActive: (active) => set({ active }),
       updateSection: (letter, patch) =>
         set((state) => {
@@ -132,7 +123,6 @@ export const useProject = create<Project>()(
         set((state) => ({
           marks: { ...state.marks, [video]: { ...state.marks[video], [block]: seconds } },
         })),
-      setTempo: (tempo) => set({ tempo: clampBpm(tempo) }),
       setLane: (lane, patch) =>
         set((state) => ({ mix: { ...state.mix, [lane]: { ...state.mix[lane], ...patch } } })),
     }),
@@ -140,15 +130,8 @@ export const useProject = create<Project>()(
       name: 'scordatura-proyecto',
       version: 1,
       storage: createJSONStorage(() => (typeof window === 'undefined' ? memoryStorage : window.localStorage)),
-      partialize: ({ blocks, sections, active, marks, tempo, mix }) => ({
-        blocks,
-        sections,
-        active,
-        marks,
-        tempo,
-        mix,
-      }),
-      merge: (saved, current) => ({ ...current, ...sanitize((saved ?? {}) as Partial<Project>) }),
+      partialize: ({ sections, active, marks, mix }) => ({ sections, active, marks, mix }),
+      merge: (saved, current) => ({ ...current, ...sanitize((saved ?? {}) as Parameters<typeof sanitize>[0]) }),
     },
   ),
 );

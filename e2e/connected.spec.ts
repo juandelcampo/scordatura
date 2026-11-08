@@ -1,11 +1,10 @@
 // Herramientas conectadas a la consigna, Volver, grados, volumen, batería, barra de abajo y mazo.
 import { expect, test, type Page } from '@playwright/test';
-import { clicks, countSounds, goto, plucks, watchErrors } from './fixtures/helpers';
+import { clicks, countSounds, goto, openSection, plucks, watchErrors } from './fixtures/helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-const nav = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Herramientas' }).getByRole('link', { name }).click();
+const nav = (page: Page, name: string) => openSection(page, name);
 const row = (page: Page, id: string) => page.locator(`[data-row="${id}"]`);
 const value = (page: Page, id: string) => row(page, id).locator('p').first();
 

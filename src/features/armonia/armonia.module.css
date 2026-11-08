@@ -5,6 +5,191 @@
   gap: 10px;
   margin-top: 12px;
 }
+
+/* Arriba, lo justo: qué progresión es y cómo está configurada. */
+.head {
+  padding-block: 10px;
+}
+.head header h1 {
+  margin-bottom: 2px;
+  font-size: clamp(24px, 4.2cqi, 40px);
+  letter-spacing: -0.02em;
+}
+.settingsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--touch);
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+.settings[data-open='false'] {
+  display: none;
+}
+.settings [role='group'] output {
+  min-width: 64px;
+}
+.settings select[data-testid='harmony-tuning'] {
+  width: 150px;
+}
+@container main (min-width: 700px) {
+  .settingsToggle {
+    display: none;
+  }
+  .settings[data-open] {
+    display: flex;
+  }
+}
+
+/* La mesa de trabajo. En angosto es una sola columna, con los controles fijos arriba: flex y no grid,
+   porque un elemento sticky no sale de su celda. En ancho, los acordes quedan al lado de lo que los edita. */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 var(--gutter) var(--gutter);
+  border-bottom: var(--rule);
+}
+.board {
+  display: contents;
+}
+.editor {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.transport {
+  position: sticky;
+  top: calc(52px + env(safe-area-inset-top));
+  z-index: 5;
+  margin-inline: calc(var(--gutter) * -1);
+  padding: 8px var(--gutter);
+  border-bottom: var(--rule);
+  background: var(--paper);
+}
+@media (min-width: 900px) {
+  .transport {
+    top: 0;
+  }
+}
+/* Con poca altura, una barra fija no deja lugar para lo demás. */
+@media (max-height: 640px) {
+  .transport {
+    position: static;
+  }
+}
+.transportRow {
+  display: flex;
+  gap: 6px;
+}
+.transportRow > button {
+  flex: none;
+  min-height: 48px;
+  white-space: nowrap;
+}
+.transportRow > button:first-child {
+  flex: 1 1 auto;
+  min-height: 48px;
+  padding: 6px 10px;
+}
+.wideLabel {
+  display: none;
+}
+.rule {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.barHint {
+  color: var(--muted);
+  font-size: 13px;
+}
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: var(--rule);
+  background: var(--soft);
+}
+.barName {
+  font: 900 20px/1 var(--heavy);
+  overflow-wrap: anywhere;
+}
+.barGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.barBeats {
+  padding-inline: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.help {
+  font-size: 13px;
+}
+.help summary {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: var(--touch-small);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.help ul {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+@container main (min-width: 480px) {
+  .wideLabel {
+    display: inline;
+  }
+}
+@container main (min-width: 860px) {
+  .workspace {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    padding-top: var(--gutter);
+  }
+  .board {
+    position: sticky;
+    top: 0;
+    display: grid;
+    gap: 10px;
+    max-height: 100dvh;
+    padding-block: 4px;
+    overflow-y: auto;
+  }
+  .transport {
+    position: static;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}
+
 .tuningField {
   display: grid;
   gap: 3px;
@@ -25,49 +210,28 @@
   font-weight: 700;
 }
 .chords {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  gap: 0;
+  display: flex;
+  flex-wrap: wrap;
   margin: 0;
   padding: 0;
-  border-top: 0;
+  border-top: var(--rule);
   border-left: var(--rule);
   list-style: none;
 }
+/* Con flex, la última fila se estira y no deja casilleros vacíos. */
 .chord {
+  position: relative;
+  flex: 1 1 116px;
   min-width: 0;
-  padding: 10px;
+  padding: 8px 10px 10px;
   border-right: var(--rule);
   border-bottom: var(--rule);
 }
-.chord[data-locked='true'] {
+.chord:hover {
   background: var(--soft);
+}
+.chord[data-locked='true'] {
   box-shadow: inset 0 6px 0 var(--accent);
-}
-.chord h3 {
-  margin-bottom: 4px;
-  font: 900 clamp(26px, 6cqi, 40px)/1 var(--heavy);
-  letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
-}
-.frets {
-  margin-bottom: 8px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.chordActions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-}
-.chordActions button {
-  min-width: 0;
-  padding-inline: 2px;
-}
-.lockSlot {
-  grid-column: span 2;
-  min-width: 0;
 }
 .chord[data-selected='true'] {
   outline: 4px solid var(--ink);
@@ -80,6 +244,18 @@
 .chord[data-playing='true'] .role {
   color: inherit;
 }
+.chordHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+.chord h3 {
+  font: 900 clamp(24px, 4cqi, 34px)/1 var(--heavy);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+/* El botón cubre toda la tarjeta: el dedo no tiene que acertarle al nombre. */
 .chordName {
   display: block;
   width: 100%;
@@ -91,30 +267,51 @@
   letter-spacing: inherit;
   text-align: left;
   overflow-wrap: anywhere;
-  text-decoration: underline 3px transparent;
-  text-underline-offset: 4px;
 }
-.chordName:hover,
-.chordName[aria-pressed='true'] {
-  text-decoration-color: var(--accent);
+.chordName::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.chord[data-playing='true'] .chordName {
+  color: inherit;
+}
+/* Por encima del botón que cubre la tarjeta. */
+.lockSlot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+.lockSlot button {
+  min-width: 32px;
+  padding: 2px;
 }
 .role {
-  margin-left: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
+.frets {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.beatsCount {
+  font-size: 12px;
+  font-weight: 700;
+}
 .addSlot {
   display: flex;
+  flex: 1 1 116px;
   min-width: 0;
   border-right: var(--rule);
   border-bottom: var(--rule);
 }
 .addSlot button {
   flex: 1;
-  min-height: 96px;
+  min-height: 72px;
   padding: 10px;
   border: 0;
   background: none;
@@ -133,28 +330,23 @@
 }
 
 .degrees {
-  margin-bottom: 8px;
-  font-size: clamp(18px, 3.4cqi, 26px);
+  font-size: clamp(15px, 2.6cqi, 20px);
   font-weight: 700;
 }
 .degree {
-  display: inline-block;
-  margin-bottom: 2px;
-  padding: 0 6px;
+  min-width: 0;
+  padding: 0 4px;
+  overflow-wrap: anywhere;
   background: var(--ink);
   color: var(--paper);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
-.longTitle header h1 {
-  font-size: clamp(24px, 4.2cqi, 40px);
-  letter-spacing: -0.02em;
-}
-
 .panel {
-  /* Al abrirlo desde una tarjeta, que no quede tapado por la barra del celular. */
-  scroll-margin-top: 72px;
+  /* Al abrirlo desde una tarjeta, que no quede tapado por las barras fijas del celular. */
+  scroll-margin-top: 220px;
+  min-width: 0;
   border: var(--rule);
 }
 .panelBody {
@@ -248,7 +440,7 @@
   gap: 8px;
 }
 .typed input {
-  width: 16ch;
+  width: 22ch;
   max-width: 100%;
 }
 .problem {
@@ -262,32 +454,40 @@
 /* El ritmo armónico a la vista: cada acorde ocupa lo que dura. */
 .timeline {
   display: flex;
-  height: 14px;
-  margin-top: 12px;
-  border: var(--rule);
-  border-bottom: 0;
+  min-height: 30px;
+  margin-top: 6px;
+  border: 2px solid var(--ink);
 }
 .timeline span {
+  display: flex;
   flex: 1 1 0;
+  align-items: center;
   min-width: 0;
-  background: var(--soft);
+  padding-inline: 4px;
+  overflow: hidden;
+  background: var(--paper);
   border-right: 2px solid var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
 }
 .timeline span:last-child {
   border-right: 0;
 }
 .timeline span[data-selected='true'] {
   background: var(--ink);
+  color: var(--paper);
 }
 .timeline span[data-playing='true'] {
   background: var(--accent);
+  color: var(--on-accent);
 }
-.beatsCount {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
+
+/* Al final, para ganarle a la base de .chord: en dos columnas, nombres largos sin partirse. */
+@container main (min-width: 860px) {
+  .chord,
+  .addSlot {
+    flex-basis: 150px;
+  }
 }

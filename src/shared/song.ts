@@ -7,7 +7,7 @@ import { exampleMelody, type Note } from '~/core/melody';
 import type { RhythmConfig } from '~/core/rhythm';
 import { createRng } from '~/core/rng';
 import { buildSong, type Song } from '~/core/song';
-import { useConsigna } from './consigna';
+import { useBlocks, useConsigna } from './consigna';
 import { useProject } from './project';
 import { useSettings } from './settings';
 
@@ -58,9 +58,8 @@ export function useConsignaParts(): ConsignaParts {
 
 export function useSong(): Song {
   const parts = useConsignaParts();
-  const blocks = useProject((s) => s.blocks);
+  const blocks = useBlocks();
   const sections = useProject((s) => s.sections);
-  const tempo = useProject((s) => s.tempo);
   const mix = useProject((s) => s.mix);
   const a4 = useSettings((s) => s.a4);
   return useMemo(
@@ -73,10 +72,11 @@ export function useSong(): Song {
         melody: parts.melody.notes,
         melodyChosen: parts.melody.chosen,
         drone: parts.drone,
-        tempo,
+        // Un solo tempo, el del ritmo de la consigna, aunque una sección tenga su propio ritmo.
+        tempo: parts.rhythm.bpm,
         mix,
         a4,
       }),
-    [blocks, sections, tempo, mix, a4, parts],
+    [blocks, sections, mix, a4, parts],
   );
 }

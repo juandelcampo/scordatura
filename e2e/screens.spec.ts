@@ -3,9 +3,11 @@ import { test } from '@playwright/test';
 import { goto } from './fixtures/helpers';
 
 const SCREENS: Array<[string, string, number, number, 'light' | 'dark']> = [
-  ['inicio-phone', '/', 390, 844, 'light'],
-  ['inicio-desktop', '/', 1280, 800, 'light'],
+  ['acerca-phone', '/acerca', 390, 844, 'light'],
+  ['acerca-desktop', '/acerca', 1280, 800, 'light'],
   ['hub-phone', '/consigna', 390, 844, 'light'],
+  ['herramientas-phone', '/herramientas', 390, 844, 'light'],
+  ['herramientas-desktop', '/herramientas', 1280, 800, 'light'],
   ['estudio-phone', '/estudio', 390, 844, 'light'],
   ['estudio-desktop', '/estudio', 1280, 800, 'light'],
   ['estudio-desktop-dark', '/estudio', 1920, 1080, 'dark'],
