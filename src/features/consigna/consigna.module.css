@@ -18,6 +18,21 @@
   text-decoration: none;
   text-transform: uppercase;
 }
+.toCanvas {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 6px 16px;
+  border: var(--rule);
+  color: var(--ink);
+  font: 900 15px/1.1 var(--heavy);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.toCanvas:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
 .listen:hover {
   background: var(--ink);
   color: var(--paper);

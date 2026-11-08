@@ -1,5 +1,5 @@
-// El proyecto del lienzo, guardado en este navegador. La posición de reproducción no vive acá: va en
-// un store aparte para no re-renderizar los paneles pesados mientras suena.
+// El proyecto del lienzo, guardado en este navegador. La posición de reproducción no vive acá: la da
+// el reproductor (audio/lienzo) para no re-renderizar los paneles pesados mientras suena.
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { keyFor } from '~/core/lienzo/harmony';
@@ -14,12 +14,22 @@ import {
   type Variant,
 } from '~/core/lienzo/types';
 
-type VariantInput = Variant extends infer V ? (V extends Variant ? Omit<V, 'id'> : never) : never;
+export type VariantInput = Variant extends infer V ? (V extends Variant ? Omit<V, 'id'> : never) : never;
 
 interface LienzoStore {
   project: Project | null;
+  /** Las canciones anteriores, la última primero. */
+  archive: Project[];
+  /** Cuándo se terminó cada canción. */
+  finished: number[];
+  /** Cuándo arrancó el reto de 14 canciones en 28 días. */
+  challengeStart: number | null;
   /** Arranca un proyecto (nuevo o migrado). Reemplaza al actual. */
   load: (project: Project) => void;
+  /** Guarda la actual como "anterior" y arranca otra. */
+  next: (project: Project, finished: boolean) => void;
+  startChallenge: () => void;
+  update: (fn: (p: Project) => Partial<Project>) => void;
   setTitle: (title: string) => void;
   /** Los acordes van por grado: cambiar la tonalidad transporta todo el tema. */
   setKey: (key: Key) => void;
@@ -38,7 +48,9 @@ interface LienzoStore {
 }
 
 const memoryStorage = { getItem: () => null, setItem: () => undefined, removeItem: () => undefined };
-const newId = () => `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+let idCounter = 0;
+export const newId = (prefix = 'v') => `${prefix}${Date.now().toString(36)}${(idCounter++).toString(36)}`;
+const ARCHIVE = 12;
 
 export const useLienzo = create<LienzoStore>()(
   persist(
@@ -47,7 +59,18 @@ export const useLienzo = create<LienzoStore>()(
         set((state) => (state.project ? { project: { ...state.project, ...fn(state.project) } } : state));
       return {
         project: null,
+        archive: [],
+        finished: [],
+        challengeStart: null,
         load: (project) => set({ project }),
+        next: (project, finished) =>
+          set((state) => ({
+            project,
+            archive: state.project ? [state.project, ...state.archive].slice(0, ARCHIVE) : state.archive,
+            finished: finished ? [...state.finished, Date.now()] : state.finished,
+          })),
+        startChallenge: () => set({ challengeStart: Date.now() }),
+        update: edit,
         setTitle: (title) => edit(() => ({ title })),
         setKey: (key) => edit(() => ({ key })),
         setBpm: (bpm) => edit(() => ({ bpm: Math.min(300, Math.max(20, Math.round(bpm))) })),
@@ -92,11 +115,34 @@ export const useLienzo = create<LienzoStore>()(
       name: 'scordatura-lienzo',
       version: 1,
       storage: createJSONStorage(() => (typeof window === 'undefined' ? memoryStorage : window.localStorage)),
-      partialize: ({ project }) => ({ project }),
-      merge: (saved, current) => ({
-        ...current,
-        project: sanitizeProject((saved as { project?: unknown } | null)?.project),
+      partialize: ({ project, archive, finished, challengeStart }) => ({
+        project,
+        archive,
+        finished,
+        challengeStart,
       }),
+      merge: (saved, current) => {
+        const raw = (saved ?? {}) as {
+          project?: unknown;
+          archive?: unknown;
+          finished?: unknown;
+          challengeStart?: unknown;
+        };
+        return {
+          ...current,
+          project: sanitizeProject(raw.project),
+          archive: Array.isArray(raw.archive)
+            ? raw.archive
+                .map(sanitizeProject)
+                .filter((p): p is Project => !!p)
+                .slice(0, ARCHIVE)
+            : [],
+          finished: Array.isArray(raw.finished)
+            ? raw.finished.filter((t): t is number => typeof t === 'number')
+            : [],
+          challengeStart: typeof raw.challengeStart === 'number' ? raw.challengeStart : null,
+        };
+      },
     },
   ),
 );

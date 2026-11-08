@@ -69,3 +69,13 @@ export const DRUM_PRESETS: DrumPreset[] = [
     config: drumConfig(160, { bombo: 'x.....x...', caja: '......x...', hihat: 'x.x.x.x.x.' }),
   },
 ];
+
+/** El kit de objetos de la casa: las mismas filas, con lo que tengas a mano. */
+export const OBJECT_KIT: Record<string, string> = {
+  bombo: 'Cartón',
+  caja: 'Mesa',
+  hihat: 'Llaves',
+  palma: 'Palmas',
+  tom: 'Tupper',
+  cencerro: 'Vaso',
+};

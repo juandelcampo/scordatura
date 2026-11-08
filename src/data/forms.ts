@@ -117,3 +117,56 @@ export const FORM_EXAMPLES: FormExample[] = [
     rule: 'Por secciones, con un regreso parcial al principio.',
   },
 ];
+
+/** Plantillas del lienzo: etiquetas, intensidad de cada sección y, si hace falta, sus compases. */
+export const FORM_TEMPLATES: ReadonlyArray<{
+  label: string;
+  hint: string;
+  labels: string[];
+  energies: number[];
+  bars?: number[];
+}> = [
+  {
+    label: 'Estrófica · A A A A',
+    hint: 'la misma música, otra letra',
+    labels: ['A', 'A', 'A', 'A'],
+    energies: [2, 2, 3, 3],
+  },
+  {
+    label: 'AABA',
+    hint: 'dos veces, un contraste y vuelta',
+    labels: ['A', 'A', 'B', 'A'],
+    energies: [2, 2, 3, 2],
+  },
+  {
+    label: 'Verso y estribillo',
+    hint: 'Intro A B A B C B',
+    labels: ['Intro', 'A', 'B', 'A', 'B', 'C', 'B'],
+    energies: [1, 2, 3, 2, 3, 2, 4],
+  },
+  {
+    label: 'Bajo / alto / bajo',
+    hint: 'verso callado, estribillo fuerte',
+    labels: ['A', 'B', 'A', 'B', 'C', 'B'],
+    energies: [1, 4, 1, 4, 2, 4],
+  },
+  {
+    label: 'Una idea que crece',
+    hint: 'A A A A, cada vez más fuerte',
+    labels: ['A', 'A', 'A', 'A'],
+    energies: [1, 2, 3, 4],
+  },
+  {
+    label: 'Frases impares · 5 5 3 5',
+    hint: 'el oído no sabe cuándo termina',
+    labels: ['A', 'A', 'B', 'A'],
+    energies: [2, 2, 3, 2],
+    bars: [5, 5, 3, 5],
+  },
+  {
+    label: 'Arrancar por el estribillo',
+    hint: 'B A B A B',
+    labels: ['B', 'A', 'B', 'A', 'B'],
+    energies: [4, 2, 4, 2, 4],
+  },
+];

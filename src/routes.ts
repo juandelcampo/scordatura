@@ -1,6 +1,8 @@
 import { index, layout, route, type RouteConfig } from '@react-router/dev/routes';
 
 export default [
+  // El lienzo ocupa toda la pantalla: tiene su propio encabezado y su menú.
+  route('lienzo', 'features/lienzo/LienzoRoute.tsx'),
   layout('shell/AppShell.tsx', [
     // La consigna es la entrada. /consigna sigue andando: hay links compartidos que apuntan ahí.
     index('features/consigna/ConsignaRoute.tsx', { id: 'consigna-inicio' }),

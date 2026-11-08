@@ -35,6 +35,8 @@ npm run e2e:dev         # pruebas contra el servidor de desarrollo, donde React 
 npm run check:videos    # comprueba que los videos del catálogo sigan disponibles (necesita conexión)
 ```
 
+Con varias sesiones trabajando a la vez, `E2E_PORT=5299 npx playwright test` sirve el build en otro puerto. `sirv` lee la lista de archivos al arrancar: después de un build nuevo, hay que reiniciar el servidor.
+
 Las pruebas de navegador usan el Chrome instalado en el sistema. Para revisar capturas de cada pantalla:
 `SCREENSHOTS=1 npx playwright test screens` (quedan en `test-results/screens`).
 
@@ -75,6 +77,16 @@ ESLint hace cumplir las tres primeras, y `npm run lint` falla si se rompen.
 La forma es el esqueleto. Cada letra (A, B, C…) guarda su progresión, su ritmo, su consigna y su letra. Armonía, Ritmo y Letras guardan en la sección elegida, Melodía lee sus acordes, y Forma lleva los compases de cada sección al metrónomo. Una idea grabada queda pegada a la consigna y a la sección donde nació.
 
 En el Estudio, cada sección además guarda cuántos compases dura y si lleva drone, y el proyecto guarda el tempo y la mezcla. Una sección sin armonía o ritmo propio usa los de la consigna, y cualquier ritmo se ve y se edita como batería. `core/song.ts` calcula lo que suena en cada momento, y `audio/song.ts` lo programa.
+
+### El lienzo
+
+`/lienzo` es la canción como proyecto: un proyecto es una canción. Las secciones forman el tema y cada carril (Armonía, Melodía, Ritmo, Letra, más las Tomas) pone en cada sección una variante de la biblioteca del proyecto. La consigna queda arriba: propone, sortea y chequea cada celda con ✓ o ✗.
+
+- **Modelo** (`core/lienzo/types.ts`): los acordes se guardan por grado y con duración en compases, así cambiar la tónica transporta todo. Armonía, melodía y ritmo de una repetición son los de su raíz; la letra es propia de cada sección.
+- **Core** (`core/lienzo/`): armonía y grados, ritmo por paso sobre `core/rhythm`, melodía por sílabas sobre los contornos de `core/melody`, letra con la métrica de `core/spanish`, forma y contraste, círculo, digitaciones para cualquier afinación, Tus reglas, la agenda de lo que suena por compás y el MIDI.
+- **Estado**: `shared/lienzo.ts` guarda el proyecto y las canciones anteriores; `shared/lienzoUi.ts`, lo que es de la pantalla. La posición de reproducción no pasa por ningún store: la da `audio/lienzo.ts` desde el reloj de audio.
+- **Migración**: la primera vez, el lienzo arma el proyecto con la forma de la consigna y lo que el Estudio guardaba por letra. Lo viejo no se toca.
+- **Pendiente**: acordes con séptima, cambio de tonalidad por sección, sinalefa entre versos en la melodía, transcribir lo tarareado a la grilla, manejo por teclado del editor de melodía y videos puntuales en Referencias (hoy son búsquedas).
 
 ### Responsive
 

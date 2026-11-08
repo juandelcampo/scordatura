@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import {
   clicks,
   countSounds,
+  editStudio,
   goto,
   gotoStudioEditing,
   openSection,

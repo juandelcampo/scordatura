@@ -15,6 +15,7 @@ import styles from './shell.module.css';
 
 // Una sesión tiene un solo camino: se sortea, se toca y queda en el Diario. Lo demás cuelga de ahí.
 const SECTIONS: ReadonlyArray<{ label: string; to: string; routes: readonly string[] }> = [
+  { label: 'Lienzo', to: '/lienzo', routes: [] },
   { label: 'Consigna', to: '/', routes: ['/consigna', '/estudio', '/cartas'] },
   { label: 'Diario', to: '/diario', routes: [] },
   {

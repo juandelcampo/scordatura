@@ -157,6 +157,9 @@ export default function ConsignaRoute() {
           <Link className={styles.listen} to="/estudio" data-testid="listen">
             ▶ Escuchar todo
           </Link>
+          <Link className={styles.toCanvas} to="/lienzo" data-testid="to-lienzo">
+            Componer en el lienzo →
+          </Link>
           <RecordButton />
         </div>
         <div className={styles.extras} data-print="hide">

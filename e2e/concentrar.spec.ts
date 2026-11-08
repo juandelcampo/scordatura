@@ -32,7 +32,7 @@ test.describe('la consigna es la entrada', () => {
   test('el menú tiene tres entradas, y marca dónde cuelga cada pantalla', async ({ page }) => {
     await goto(page, '/ritmo');
     const nav = page.getByRole('navigation', { name: 'Principal' });
-    await expect(nav.getByRole('listitem')).toHaveCount(3);
+    await expect(nav.getByRole('listitem')).toHaveCount(4);
     await expect(nav.getByRole('link', { name: 'Herramientas', exact: true })).toHaveAttribute(
       'aria-current',
       'page',

@@ -176,3 +176,52 @@ export function songToMidi(song: Song): Uint8Array<ArrayBuffer> {
   );
   return new Uint8Array([...header, ...tracks]);
 }
+
+export interface MidiSpan {
+  beat: number;
+  beats: number;
+  midi: number;
+  velocity: number;
+}
+
+export interface MidiTrack {
+  name: string;
+  channel: number;
+  program?: number;
+  spans: MidiSpan[];
+}
+
+/** Un MIDI armado desde afuera: tempo, cambios de compás (en negras) y pistas. */
+export function writeMidi(
+  bpm: number,
+  signatures: ReadonlyArray<{ beat: number; numerator: number; power: number }>,
+  tracks: readonly MidiTrack[],
+  markers: ReadonlyArray<{ beat: number; text: string }> = [],
+): Uint8Array<ArrayBuffer> {
+  const quarter = Math.round(60_000_000 / bpm);
+  const tempo: TrackEvent[] = [
+    {
+      tick: 0,
+      order: 0,
+      bytes: [0xff, 0x51, 0x03, (quarter >> 16) & 0xff, (quarter >> 8) & 0xff, quarter & 0xff],
+    },
+    ...signatures.map(({ beat, numerator, power }) => ({
+      tick: ticks(beat),
+      order: 0,
+      bytes: [0xff, 0x58, 0x04, numerator, power, 24, 8],
+    })),
+    ...markers.map(({ beat, text }) => {
+      const bytes = [...new TextEncoder().encode(text)].slice(0, 127);
+      return { tick: ticks(beat), order: 0, bytes: [0xff, 0x06, bytes.length, ...bytes] };
+    }),
+  ];
+  const used = tracks.filter((t) => t.spans.length);
+  const header = chunk('MThd', [0, 1, 0, used.length + 1, TICKS_PER_BEAT >> 8, TICKS_PER_BEAT & 0xff]);
+  const body = [
+    trackChunk('Scordatura', tempo),
+    ...used.map((t) => trackChunk(t.name, noteEvents(t.spans, t.channel, t.program))),
+  ];
+  return new Uint8Array([...header, ...body.flat()]);
+}
+
+export { GM_DRUMS, DRUM_CHANNEL, PROGRAM as GM_PROGRAM };
