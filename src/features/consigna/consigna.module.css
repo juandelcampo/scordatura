@@ -108,6 +108,123 @@
   }
 }
 
+/* La afinación: una franja fina bajo la carta. En una pantalla ancha entra en una línea; más
+   angosta, el nombre y los botones de trabar quedan arriba y lo que se toca baja. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 4px var(--gutter);
+  border-bottom: var(--rule);
+}
+.strip[data-locked='true'] {
+  background: var(--soft);
+  box-shadow: inset 6px 0 0 var(--accent);
+}
+.strip .rowHead,
+.strip .rowBody {
+  display: contents;
+}
+.strip .rowName {
+  order: 1;
+}
+.strip .rowValue {
+  flex: 1 1 0;
+  order: 2;
+  min-width: 0;
+  font-size: 17px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 1;
+}
+.strip .rowActions {
+  order: 3;
+}
+.stripStrings {
+  flex: 1 1 260px;
+  order: 4;
+  max-width: 380px;
+}
+.stripPlay {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  order: 5;
+}
+.strip .rowRule,
+.stripMeter {
+  flex: 1 1 220px;
+  order: 6;
+  min-width: 0;
+  margin: 0;
+}
+.strip .rowRule {
+  -webkit-line-clamp: 1;
+}
+.strip[data-tuning='true'] .rowRule {
+  display: none;
+}
+@container main (min-width: 1000px) {
+  .strip {
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
+  .strip .rowValue {
+    flex: 0 1 auto;
+    max-width: 200px;
+  }
+  .stripStrings {
+    flex: 0 3 270px;
+    min-width: 168px;
+  }
+  .strip .rowRule,
+  .stripMeter {
+    flex: 1 1 0;
+  }
+  .strip .rowActions {
+    order: 7;
+  }
+}
+
+/* La aguja chica: el centro naranja es "afinada"; a los costados, ±50 cents. */
+.stripMeter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needleScale {
+  position: relative;
+  flex: 1 4 160px;
+  min-width: 40px;
+  max-width: 200px;
+  height: var(--touch-small);
+  border: 2px solid var(--ink);
+  background: var(--paper);
+}
+.needleZone {
+  position: absolute;
+  inset: 0 45%;
+  background: var(--accent);
+}
+.needle {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 4px;
+  margin-left: -2px;
+  background: var(--ink);
+  transition: left 60ms linear;
+}
+.stripMeter[data-state='ok'] .needleScale {
+  background: var(--accent);
+}
+.tunerCents {
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Las tarjetas. El hueco entre ellas es la regla: no hay bordes que sumar ni celdas que sobren. */
 .rows {
   display: grid;
@@ -122,8 +239,13 @@
   .rows {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  /* Sin la carta quedan siete: la armonía, que tiene más para tocar, ocupa dos lugares. */
-  .row[data-row='armonia'] {
+  /* Sin la carta ni la afinación quedan seis: la armonía y la letra, que piden más lugar,
+     ocupan dos cada una. "dense" sube la que entre al hueco que dejan. */
+  .rows {
+    grid-auto-flow: row dense;
+  }
+  .row[data-row='armonia'],
+  .row[data-row='letra'] {
     grid-column: span 2;
   }
 }
@@ -286,12 +408,12 @@
   font-weight: 400;
   vertical-align: baseline;
 }
-.tuner {
-  display: grid;
-  gap: 4px;
-}
 .tunerStatus {
-  min-height: 20px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 700;
 }
@@ -526,7 +648,8 @@
     background: var(--paper);
   }
   .row[data-locked='true'],
-  .band[data-locked='true'] {
+  .band[data-locked='true'],
+  .strip[data-locked='true'] {
     background: var(--paper);
     box-shadow: none;
   }

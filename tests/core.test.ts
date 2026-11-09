@@ -93,6 +93,35 @@ describe('detección de altura', () => {
     expect(detectPitch(noise, SR)).toBeNull();
   });
 
+  it('con ruido de fondo no se corre ni salta de octava', () => {
+    let state = 11;
+    const noise = () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 2147483648 - 1;
+    };
+    for (const note of ['E2', 'A2', 'G3', 'E4']) {
+      const freq = midiToHz(noteToMidi(note));
+      for (let phase = 0; phase < 6; phase++) {
+        const signal = tone(
+          (p) => 0.03 * (0.4 * Math.sin(p + phase) + 0.6 * Math.sin(2 * p + 2 * phase)) + 0.01 * noise(),
+          freq,
+        );
+        const result = detectPitch(signal, SR, { fallback: 0.3 });
+        expect(result, note).not.toBeNull();
+        expect(Math.abs(centsBetween(result!.freq, freq)), note).toBeLessThan(3);
+      }
+    }
+  });
+
+  it('el nivel de continua no cambia la lectura', () => {
+    const freq = midiToHz(noteToMidi('A2'));
+    const result = detectPitch(
+      tone((p) => 0.2 + 0.3 * Math.sin(p), freq),
+      SR,
+    );
+    expect(Math.abs(centsBetween(result!.freq, freq))).toBeLessThan(1);
+  });
+
   it('descarta las lecturas sueltas con la mediana', () => {
     const tracker = new PitchTracker(5);
     [110, 110, 220, 110, 110].forEach((value) => tracker.push(value));

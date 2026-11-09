@@ -4,10 +4,7 @@ import { isFarFromStandard, shiftString, stringOffsets } from '~/core/tuning';
 import { useSettings } from '~/shared/settings';
 import { Button, Segmented, Slab, SlabHead } from '~/shared/ui/ui';
 import styles from './afinador.module.css';
-import { useTuner, type Reading } from '~/shared/useTuner';
-
-const NEAR_CENTS = 15;
-const TUNED_CENTS = 4;
+import { needlePosition, tuningStatus, useTuner } from '~/shared/useTuner';
 
 function NoteName({ note, notation }: { note: string; notation: Notation }) {
   return (
@@ -16,24 +13,6 @@ function NoteName({ note, notation }: { note: string; notation: Notation }) {
       <sub>{splitNote(note).octave}</sub>
     </>
   );
-}
-
-function statusOf(reading: Reading | null, listening: boolean, stringNumber: number) {
-  if (!reading) {
-    return {
-      state: 'idle',
-      text: listening
-        ? `Tocá la ${stringNumber}.ª cuerda al aire.`
-        : 'Tocá una cuerda de arriba para oír su nota, o activá el micrófono para afinar.',
-    };
-  }
-  const size = Math.abs(reading.cents);
-  const direction = reading.cents < 0 ? 'Subí' : 'Bajá';
-  if (size <= TUNED_CENTS) return { state: 'ok', text: '¡Afinada!' };
-  if (size <= NEAR_CENTS) return { state: 'near', text: `${direction} un poquito` };
-  if (size < 60) return { state: 'off', text: direction };
-  const semitones = Math.round(size / 100);
-  return { state: 'off', text: `${direction} ${semitones} ${semitones === 1 ? 'semitono' : 'semitonos'}` };
 }
 
 interface TunerPanelProps {
@@ -51,8 +30,11 @@ export function TunerPanel({ notes, editable, onEdit }: TunerPanelProps) {
 
   const offsets = stringOffsets(notes);
   const { reading, selected } = tuner;
-  const status = statusOf(reading, tuner.active, notes.length - selected);
-  const needle = reading ? 50 + Math.max(-50, Math.min(50, reading.cents)) : 50;
+  const status = tuningStatus(reading, tuner.active, notes.length - selected);
+  if (!reading && !tuner.active) {
+    status.text = 'Tocá una cuerda de arriba para oír su nota, o activá el micrófono para afinar.';
+  }
+  const needle = needlePosition(reading);
 
   const playReference = (index: number) => {
     pluckString(index, noteToMidi(notes[index]!), { a4 });

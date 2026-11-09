@@ -75,6 +75,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
   const hydrated = useHydrated();
   const [copied, setCopied] = useState(false);
   const [mixerOpen, setMixerOpen] = useState(false);
+  const [tuning, setTuning] = useState(false);
   const loaded = useRef(false);
 
   // Primer montaje: el link compartido manda; si no hay, sigue la que estaba o se sortea una nueva.
@@ -153,8 +154,6 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
 
   const mini = (id: RowId, index: number): ReactNode => {
     switch (id) {
-      case 'afinacion':
-        return <MiniTuning notes={tuningNotes} />;
       case 'ritmo':
         return <MiniRhythm config={valueOf<RhythmConfig>('ritmo')} />;
       case 'armonia':
@@ -237,17 +236,17 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         >
           {isHarmony ? degrees : result.label}
         </p>
-        {rule && (
-          <p className={styles.rowRule} title={rule}>
-            <strong>Regla →</strong> {rule}
-          </p>
-        )}
+        <p className={styles.rowRule} title={rule}>
+          <strong>Regla →</strong> {rule}
+        </p>
       </div>
     );
   };
 
   const cartaIndex = rowIndex('carta');
   const carta = consigna.rows[cartaIndex]!;
+  const tuningIndex = rowIndex('afinacion');
+  const tuningRow = consigna.rows[tuningIndex]!;
 
   return (
     <div className={styles.page}>
@@ -301,9 +300,23 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         {body(cartaIndex)}
       </section>
 
+      {/* La afinación se mira al empezar y después solo hace falta a mano: va en una franja. */}
+      <section
+        className={styles.strip}
+        aria-label={ROWS[tuningIndex]!.name}
+        data-row="afinacion"
+        data-locked={tuningRow.locked}
+        data-chosen={!!tuningRow.override}
+        data-tuning={tuning}
+      >
+        {head(tuningIndex)}
+        {body(tuningIndex)}
+        <MiniTuning notes={tuningNotes} tuning={tuning} onTuning={setTuning} />
+      </section>
+
       <ol className={styles.rows}>
         {ROWS.map((row, index) => {
-          if (row.id === 'carta') return null;
+          if (row.id === 'carta' || row.id === 'afinacion') return null;
           const state = consigna.rows[index]!;
           return (
             <li

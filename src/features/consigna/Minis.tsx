@@ -20,7 +20,7 @@ import { useProject } from '~/shared/project';
 import { RhythmGrid } from '~/shared/RhythmGrid';
 import { useSettings } from '~/shared/settings';
 import { Button } from '~/shared/ui/ui';
-import { useTuner } from '~/shared/useTuner';
+import { needlePosition, tuningStatus, useTuner } from '~/shared/useTuner';
 import styles from './consigna.module.css';
 
 const SECONDS_PER_CHORD = 1.8;
@@ -70,7 +70,10 @@ export function Foot({ children }: { children?: ReactNode }) {
   return <div className={styles.foot}>{children}</div>;
 }
 
-/** Se monta recién al activarlo: hasta entonces la consigna no pide el micrófono. */
+/**
+ * Se monta recién al activarlo: hasta entonces la consigna no pide el micrófono. Las mismas
+ * cuerdas pasan a escuchar, y en lugar de la regla aparece una aguja chica.
+ */
 function MiniTuner({ notes }: { notes: string[] }) {
   const a4 = useSettings((s) => s.a4);
   const tuner = useTuner(notes, a4, 'guided');
@@ -85,22 +88,12 @@ function MiniTuner({ notes }: { notes: string[] }) {
   }, [toggle]);
 
   const { reading, selected, tuned, message } = tuner;
-  let status = active ? `Tocá la ${notes.length - selected}.ª cuerda al aire.` : 'Abriendo el micrófono…';
-  if (message) status = message;
-  else if (reading) {
-    const size = Math.abs(reading.cents);
-    const direction = reading.cents < 0 ? 'Subí' : 'Bajá';
-    status =
-      size <= 4
-        ? '¡Afinada!'
-        : size < 60
-          ? `${direction} ${Math.round(size)} cents`
-          : `${direction} ${Math.round(size / 100)} semitonos`;
-  }
+  const status = tuningStatus(reading, active, notes.length - selected);
+  const text = message ?? (active ? status.text : 'Abriendo el micrófono…');
 
   return (
-    <div className={styles.tuner} data-testid="mini-tuner">
-      <div className={styles.strings}>
+    <>
+      <div className={`${styles.strings} ${styles.stripStrings}`} data-testid="mini-tuner" data-print="hide">
         {notes.map((note, index) => (
           <button
             key={index}
@@ -114,28 +107,50 @@ function MiniTuner({ notes }: { notes: string[] }) {
           </button>
         ))}
       </div>
-      <div className={styles.tunerStatus} role="status" data-testid="mini-tuner-status">
-        {status}
+      <div className={styles.stripMeter} data-state={status.state} data-print="hide">
+        <div className={styles.needleScale} aria-hidden="true">
+          <span className={styles.needleZone} />
+          {reading && <span className={styles.needle} style={{ left: `${needlePosition(reading)}%` }} />}
+        </div>
+        <span className={styles.tunerStatus} role="status" data-testid="mini-tuner-status">
+          {text}
+        </span>
+        {reading && Math.abs(reading.cents) < 100 && (
+          <span className={styles.tunerCents}>
+            {reading.cents >= 0 ? '+' : '−'}
+            {Math.abs(reading.cents).toFixed(0)} c
+          </span>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 
-export function MiniTuning({ notes }: { notes: string[] }) {
+/**
+ * La afinación es una franja, no una tarjeta: se mira al empezar y después queda a mano. Devuelve
+ * las cuerdas y los botones sueltos, para que la franja los acomode en una línea.
+ */
+export function MiniTuning({
+  notes,
+  tuning,
+  onTuning,
+}: {
+  notes: string[];
+  tuning: boolean;
+  onTuning: (tuning: boolean) => void;
+}) {
   const a4 = useSettings((s) => s.a4);
   const notation = useSettings((s) => s.notation);
   const { playing, play, stop } = usePlayback();
-  const [tuning, setTuning] = useState(false);
   const midis = notes.map(noteToMidi);
   const eighth = 60 / ARPEGGIO_BPM / 2;
 
   return (
-    <div className={styles.mini}>
-      {/* Al afinar, las mismas cuerdas pasan a escuchar el micrófono: la tarjeta no crece. */}
+    <>
       {tuning ? (
         <MiniTuner key={notes.join()} notes={notes} />
       ) : (
-        <div className={styles.strings}>
+        <div className={`${styles.strings} ${styles.stripStrings}`} data-print="hide">
           {notes.map((note, index) => (
             <button
               key={index}
@@ -149,35 +164,40 @@ export function MiniTuning({ notes }: { notes: string[] }) {
           ))}
         </div>
       )}
-      <Foot>
-        <Button
-          variant="mini"
-          ariaLabel="Oír la afinación arpegiada"
-          onClick={() =>
-            playing
-              ? stop()
-              : play(notes.length * eighth + 1, () => playMelody(arpeggioOf(notes), ARPEGGIO_BPM, a4))
-          }
-        >
-          {playing ? '■ Parar' : '▶ Arpegio'}
-        </Button>
-        <Button
-          variant="mini"
-          ariaLabel="Oír la afinación rasgueada"
-          onClick={() => play(1.5, () => strum(midis, a4))}
-        >
-          ▶ Rasgueo
-        </Button>
+      <div className={styles.stripPlay} data-print="hide">
+        {/* Mientras se afina, el lugar es para la aguja. */}
+        {!tuning && (
+          <>
+            <Button
+              variant="mini"
+              ariaLabel="Oír la afinación arpegiada"
+              onClick={() =>
+                playing
+                  ? stop()
+                  : play(notes.length * eighth + 1, () => playMelody(arpeggioOf(notes), ARPEGGIO_BPM, a4))
+              }
+            >
+              {playing ? '■ Parar' : '▶ Arpegio'}
+            </Button>
+            <Button
+              variant="mini"
+              ariaLabel="Oír la afinación rasgueada"
+              onClick={() => play(1.5, () => strum(midis, a4))}
+            >
+              ▶ Rasgueo
+            </Button>
+          </>
+        )}
         <Button
           variant="mini"
           ariaPressed={tuning}
-          onClick={() => setTuning(!tuning)}
+          onClick={() => onTuning(!tuning)}
           ariaLabel={tuning ? 'Cerrar afinador' : 'Afinar con el micrófono'}
         >
-          {tuning ? '■ Afinar' : 'Afinar'}
+          {tuning ? '■ Listo' : 'Afinar'}
         </Button>
-      </Foot>
-    </div>
+      </div>
+    </>
   );
 }
 

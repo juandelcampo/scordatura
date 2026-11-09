@@ -316,8 +316,9 @@
   position: absolute;
   top: 0;
   bottom: 18px;
-  left: 46%;
-  width: 8%;
+  /* ±5 cents: lo que el afinador da por afinado. */
+  left: 45%;
+  width: 10%;
   background: var(--accent);
 }
 .meterNeedle {
