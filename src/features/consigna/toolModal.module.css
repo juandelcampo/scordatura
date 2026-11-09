@@ -1,0 +1,81 @@
+/* Abierto, el modal es lo único que se desplaza. */
+.noScroll {
+  overflow: hidden;
+}
+
+/* Una herramienta abierta desde la consigna: casi toda la pantalla, con la consigna detrás. */
+.toolModal {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+.toolModal[open] {
+  display: flex;
+  flex-direction: column;
+}
+.toolModal::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+.toolBar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--gutter);
+  padding-top: calc(6px + env(safe-area-inset-top));
+  border-bottom: var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+}
+.toolBar > button {
+  border-color: var(--paper);
+  color: var(--paper);
+}
+.toolBar > button:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+.toolRisk {
+  /* La barra es oscura; el selector conserva sus colores de siempre. */
+  color: var(--ink);
+}
+.toolRisk button {
+  min-height: var(--touch-small);
+  padding-block: 2px;
+}
+.toolTitle {
+  margin-right: auto;
+  font: 900 18px/1 var(--heavy);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+/* Las herramientas se acomodan a su contenedor: acá ese contenedor es el modal. */
+.toolBody {
+  container: main / inline-size;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* En el modal, el nombre de la herramienta ya está arriba: su título no necesita ser enorme. */
+.toolBody header h1 {
+  font-size: clamp(26px, 4cqi, 44px);
+}
+@media (min-width: 900px) {
+  .toolModal {
+    width: min(1440px, calc(100vw - 48px));
+    height: calc(100dvh - 48px);
+    margin: auto;
+    border: var(--rule);
+  }
+  .toolBar {
+    padding-top: 6px;
+  }
+}

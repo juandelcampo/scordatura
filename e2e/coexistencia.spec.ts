@@ -102,7 +102,9 @@ test.describe('lo que dice cada pantalla', () => {
     await gotoStudioEditing(page);
     await page.getByRole('button', { name: /^Acordes del bloque 1/ }).click();
     await page.getByTestId('song-chords').fill('E A B');
-    await expect(page.locator('[data-panel="acordes"]').getByRole('button', { name: 'Oír A' })).toContainText('IV');
+    await expect(page.locator('[data-panel="acordes"]').getByRole('button', { name: 'Oír A' })).toContainText(
+      'IV',
+    );
   });
 
   test('arrastrar un bloque en el Estudio llega a la consigna', async ({ page }) => {
@@ -113,7 +115,7 @@ test.describe('lo que dice cada pantalla', () => {
     await page.mouse.down();
     await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 5 });
     await page.mouse.up();
-    await go(page, 'Consigna');
+    await go(page, 'Sorteo');
     await expect(page.locator('[data-row="forma"] p').first()).toHaveText('B A A A');
     await expect(page.locator('[data-row="forma"]')).toHaveAttribute('data-locked', 'true');
   });

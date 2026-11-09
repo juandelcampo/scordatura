@@ -117,8 +117,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 16px;
-  padding: 2px var(--gutter);
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 4px var(--gutter);
   border-bottom: var(--rule);
 }
 .backToConsigna {
@@ -132,23 +133,16 @@
 }
 .riskPicker {
   display: flex;
-  flex: 1 1 240px;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0 12px;
-  max-width: 560px;
+  gap: 10px;
+}
+.riskPicker button {
+  min-height: var(--touch-small);
+  padding-block: 2px;
 }
 .axisLabel {
-  flex: none;
   font-size: 12px;
   text-transform: uppercase;
-}
-.riskPicker input {
-  flex: 1 1 70px;
-  min-width: 0;
-  height: var(--touch);
-  margin: 0;
-  accent-color: var(--accent);
 }
 
 .main {
@@ -350,9 +344,29 @@
     grid-template-rows: minmax(0, 1fr);
   }
 }
+/* La consigna también entra entera, pero solo con pantalla de escritorio: en un celular se desplaza. */
+@media (min-width: 900px) and (min-height: 600px) {
+  .shell[data-fit='consigna'] {
+    height: 100dvh;
+    overflow: hidden;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .shell[data-fit='consigna'] .column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .shell[data-fit='consigna'] .main {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
 /* La hoja para imprimir o guardar en PDF: solo el contenido, sin el marco de la app. */
 @media print {
   .shell,
+  .shell[data-fit='consigna'],
   .shell[data-fit='true'] {
     display: block;
     height: auto;

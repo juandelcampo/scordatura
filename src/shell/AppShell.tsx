@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Link, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router';
 import { drone } from '~/audio/drone';
 import { setVolume, type Channel } from '~/audio/engine';
 import { metronome } from '~/audio/metronome';
 import { song } from '~/audio/song';
 import { describeDrone } from '~/core/drone';
 import { describeRhythm } from '~/core/rhythm';
-import { RISK_NAMES, type Risk } from '~/core/roll';
 import { Fader } from '~/shared/Fader';
+import { RiskPicker } from '~/shared/RiskPicker';
 import { useSettings } from '~/shared/settings';
 import { useSong } from '~/shared/song';
+import { isToolPath, useToolModal } from '~/shared/toolModal';
 import { Button, Segmented, Stepper } from '~/shared/ui/ui';
 import styles from './shell.module.css';
 
 // Una sesión tiene un solo camino: se sortea, se toca y queda en el Diario. Lo demás cuelga de ahí.
 const SECTIONS: ReadonlyArray<{ label: string; to: string; routes: readonly string[] }> = [
-  { label: 'Lienzo', to: '/lienzo', routes: [] },
-  { label: 'Consigna', to: '/', routes: ['/consigna', '/estudio', '/cartas'] },
+  { label: 'Sorteo', to: '/', routes: ['/consigna', '/estudio', '/cartas'] },
   { label: 'Diario', to: '/diario', routes: [] },
   {
     label: 'Herramientas',
@@ -84,31 +84,19 @@ function Navigation({ pathname }: { pathname: string }) {
   );
 }
 
-/** Qué tan lejos sortea cada herramienta. Siempre está en el mismo lugar, junto al camino de vuelta. */
-function RiskBar({ onConsigna }: { onConsigna: boolean }) {
-  const risk = useSettings((s) => s.risk);
-  const set = useSettings((s) => s.set);
+/** El camino de vuelta, y qué tan lejos sortea la herramienta. En la consigna, el riesgo va junto a sortear. */
+function RiskBar() {
   return (
     <div className={styles.riskBar}>
-      {!onConsigna && (
-        <Link to="/" className={styles.backToConsigna}>
-          ← Consigna
-        </Link>
-      )}
-      <label className={styles.riskPicker}>
-        <span className={styles.axisLabel}>
-          Seguro ↔ raro: <strong>{RISK_NAMES[risk]}</strong>
+      <Link to="/" className={styles.backToConsigna}>
+        ← Consigna
+      </Link>
+      <div className={styles.riskPicker}>
+        <span className={styles.axisLabel} aria-hidden="true">
+          Riesgo
         </span>
-        <input
-          type="range"
-          min={0}
-          max={2}
-          step={1}
-          value={risk}
-          aria-valuetext={RISK_NAMES[risk]}
-          onChange={(event) => set({ risk: Number(event.target.value) as Risk })}
-        />
-      </label>
+        <RiskPicker />
+      </div>
     </div>
   );
 }
@@ -218,10 +206,16 @@ export default function AppShell() {
   const a4 = useSettings((s) => s.a4);
   const set = useSettings((s) => s.set);
   // Las páginas estáticas se generan con la barra final (/acerca/): sin esto, el HTML no coincide.
-  const { pathname: rawPathname } = useLocation();
-  const pathname = rawPathname.replace(/\/+$/, '') || '/';
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const pathname = location.pathname.replace(/\/+$/, '') || '/';
   const inStudio = pathname.startsWith('/estudio');
-  const onConsigna = pathname === '/' || pathname === '/consigna';
+  const toolFrom = useToolModal((s) => s.from);
+  // Abierta desde la consigna, la herramienta va encima de ella; si se llegó directo, es una página.
+  const modal = toolFrom !== null && isToolPath(pathname);
+  const onConsigna = pathname === '/' || pathname === '/consigna' || modal;
+  // Para la navegación, el modal sigue siendo la consigna.
+  const navPathname = modal ? '/' : pathname;
   const songRunning = useSyncExternalStore(
     song.subscribe,
     () => song.getState().running,
@@ -238,6 +232,15 @@ export default function AppShell() {
     metronome.setSound(clickSound);
     (Object.keys(volumes) as Channel[]).forEach((channel) => setVolume(channel, volumes[channel]));
   }, [a4, clickSound, volumes]);
+
+  // Se cuentan los pasos que la herramienta agrega al historial, para que cerrarla los deshaga.
+  useEffect(() => {
+    const store = useToolModal.getState();
+    if (store.from === null) return;
+    if (!isToolPath(pathname)) store.clear();
+    else if (navigationType === 'PUSH') store.step(1);
+    else if (navigationType === 'POP') store.step(-1);
+  }, [location.key, pathname, navigationType]);
 
   // Abierto, el menú ocupa toda la pantalla: se cierra al navegar o con Esc.
   useEffect(() => {
@@ -258,7 +261,11 @@ export default function AppShell() {
   }, [menuOpen]);
 
   return (
-    <div className={styles.shell} data-collapsed={collapsed} data-fit={inStudio}>
+    <div
+      className={styles.shell}
+      data-collapsed={collapsed}
+      data-fit={inStudio ? 'true' : onConsigna ? 'consigna' : 'false'}
+    >
       {songRunning && <SongSync />}
       <header className={styles.topBar}>
         <Link to="/" className={styles.brand}>
@@ -294,11 +301,11 @@ export default function AppShell() {
             {collapsed ? '→' : '←'}
           </button>
         </div>
-        <Navigation pathname={pathname} />
+        <Navigation pathname={navPathname} />
       </nav>
 
       <div className={styles.column}>
-        {!NO_RISK.includes(pathname) && <RiskBar onConsigna={onConsigna} />}
+        {!NO_RISK.includes(pathname) && !onConsigna && <RiskBar />}
         <main className={styles.main}>
           <Outlet />
         </main>

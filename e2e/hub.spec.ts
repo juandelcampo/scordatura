@@ -1,6 +1,6 @@
 // Página principal, consigna como hub, sonido de armonía y drone.
 import { expect, test, type Page } from '@playwright/test';
-import { clicks, countSounds, goto, openSection, plucks, watchErrors } from './fixtures/helpers';
+import { clicks, countSounds, goto, openSection, plucks, riskPicker, watchErrors } from './fixtures/helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -15,7 +15,7 @@ test.describe('acerca de', () => {
     const errors = watchErrors(page);
     await goto(page, '/acerca');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('canciones');
-    await expect(page.getByRole('slider', { name: /Seguro/ })).toHaveCount(0);
+    await expect(riskPicker(page)).toHaveCount(0);
     await page.getByTestId('cta').click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Consigna');
     expect(errors).toEqual([]);

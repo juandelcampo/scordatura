@@ -30,7 +30,7 @@ export const ROWS = [
   { id: 'melodia', name: 'Melodía', roll: rollMelody },
   { id: 'letra', name: 'Letra', roll: rollLyric },
   { id: 'forma', name: 'Forma', roll: rollForm },
-  { id: 'carta', name: 'Carta', roll: rollCard },
+  { id: 'carta', name: 'Consigna', roll: rollCard },
   { id: 'drone', name: 'Drone', roll: rollDrone },
 ] as const satisfies ReadonlyArray<{ id: string; name: string; roll: Roller }>;
 

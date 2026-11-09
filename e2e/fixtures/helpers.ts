@@ -53,7 +53,7 @@ export async function goto(page: Page, path: string) {
 /** Navega como una persona: el menú tiene tres entradas, y lo demás se abre desde Herramientas. */
 export async function openSection(page: Page, name: string) {
   const nav = page.getByRole('navigation', { name: 'Principal' });
-  if (['Consigna', 'Diario', 'Herramientas', 'Scordatura'].includes(name)) {
+  if (['Sorteo', 'Diario', 'Herramientas', 'Scordatura'].includes(name)) {
     await nav.getByRole('link', { name, exact: true }).click();
     return;
   }
@@ -78,4 +78,18 @@ export async function editStudio(page: Page) {
 export async function gotoStudioEditing(page: Page) {
   await goto(page, '/estudio');
   await editStudio(page);
+}
+
+/** El riesgo se elige con tres botones: Seguro, Medio o Raro. */
+export const riskPicker = (page: Page) => page.getByRole('group', { name: 'Seguro ↔ raro' });
+
+export async function setRisk(page: Page, name: 'Seguro' | 'Medio' | 'Raro') {
+  await riskPicker(page).getByRole('button', { name, exact: true }).click();
+}
+
+export async function expectRisk(page: Page, name: 'Seguro' | 'Medio' | 'Raro') {
+  await expect(riskPicker(page).getByRole('button', { name, exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 }

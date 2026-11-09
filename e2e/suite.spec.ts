@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clicks, countSounds, goto, openSection, watchErrors } from './fixtures/helpers';
+import { clicks, countSounds, expectRisk, goto, openSection, setRisk, watchErrors } from './fixtures/helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -44,9 +44,9 @@ test.describe('consigna', () => {
 
   test('un link compartido reproduce exactamente la misma consigna', async ({ page, context }) => {
     await goto(page, '/consigna');
-    await page.getByRole('button', { name: 'Trabar Carta' }).click();
-    await expect(page.getByRole('button', { name: 'Destrabar Carta' })).toBeVisible();
-    await page.getByRole('slider', { name: /Seguro/ }).fill('2');
+    await page.getByRole('button', { name: 'Trabar Consigna' }).click();
+    await expect(page.getByRole('button', { name: 'Destrabar Consigna' })).toBeVisible();
+    await setRisk(page, 'Raro');
     await expect.poll(() => page.url()).toMatch(/t=2\./);
     const url = page.url();
     const values = await page.locator('[data-row] p:first-child').allTextContents();
@@ -55,8 +55,8 @@ test.describe('consigna', () => {
     const fresh = await other.newPage();
     await goto(fresh, url);
     await expect(fresh.locator('[data-row] p:first-child')).toHaveText(values);
-    await expect(fresh.getByText('Seguro ↔ raro: Raro')).toBeVisible();
-    await expect(fresh.getByRole('button', { name: 'Destrabar Carta' })).toBeVisible();
+    await expectRisk(fresh, 'Raro');
+    await expect(fresh.getByRole('button', { name: 'Destrabar Consigna' })).toBeVisible();
     await other.close();
   });
 
@@ -70,16 +70,16 @@ test.describe('consigna', () => {
   test('cambiar el riesgo vuelve a tirar', async ({ page }) => {
     await goto(page, '/consigna');
     await expect(page).toHaveURL(/\?t=/);
-    await page.getByRole('slider', { name: /Seguro/ }).fill('0');
+    await setRisk(page, 'Seguro');
     await expect.poll(() => page.url()).toMatch(/t=0\./);
   });
 
   test('el riesgo elegido se recuerda al recargar', async ({ page }) => {
     await goto(page, '/ritmo');
-    await page.getByRole('slider', { name: /Seguro/ }).fill('2');
-    await expect(page.getByText('Seguro ↔ raro: Raro')).toBeVisible();
+    await setRisk(page, 'Raro');
+    await expectRisk(page, 'Raro');
     await page.reload();
-    await expect(page.getByText('Seguro ↔ raro: Raro')).toBeVisible();
+    await expectRisk(page, 'Raro');
   });
 
   test('la consigna no se pierde al ir a otra herramienta y volver', async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe('consigna', () => {
     const value = await rowValue(page, 'forma').textContent();
     await openSection(page, 'Cartas');
     await expect(page).toHaveURL(/\/cartas/);
-    await openSection(page, 'Consigna');
+    await openSection(page, 'Sorteo');
     await expect(rowValue(page, 'forma')).toHaveText(value!);
   });
 
@@ -233,7 +233,7 @@ test.describe('ritmo', () => {
 
   test('tirar ritmo usa el nivel de riesgo', async ({ page }) => {
     await goto(page, '/ritmo');
-    await page.getByRole('slider', { name: /Seguro/ }).fill('2');
+    await setRisk(page, 'Raro');
     await page.locator('#roll-rhythm').click();
     await expect(page.locator('[data-testid="rhythm-grid"]')).toBeVisible();
     await expect(page).toHaveURL(/m=/);
@@ -247,7 +247,7 @@ test.describe('datos viejos', () => {
       localStorage.setItem('scordatura', JSON.stringify({ state: { mood: 'fiebre', risk: 2 }, version: 1 }));
     });
     await goto(page, '/consigna');
-    await expect(page.getByText('Seguro ↔ raro: Raro')).toBeVisible();
+    await expectRisk(page, 'Raro');
     expect(errors).toEqual([]);
   });
 });
@@ -256,7 +256,7 @@ test.describe('cartas', () => {
   test('saca cartas del mazo del nivel de riesgo', async ({ page }) => {
     const errors = watchErrors(page);
     await goto(page, '/cartas');
-    await page.getByRole('slider', { name: /Seguro/ }).fill('0');
+    await setRisk(page, 'Seguro');
     const card = page.getByTestId('card');
     await expect(card).toContainText(/Nº \d{3}/);
     const first = await card.textContent();
@@ -312,7 +312,7 @@ test.describe('datos guardados corruptos', () => {
       );
     });
     await goto(page, '/cartas');
-    await expect(page.getByText('Seguro ↔ raro: Medio')).toBeVisible();
+    await expectRisk(page, 'Medio');
     await goto(page, '/afinador/tuya');
     await expect(page.getByTestId('fact-changes')).toHaveText('Ninguna');
     expect(errors).toEqual([]);

@@ -13,7 +13,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     const errors = watchErrors(page);
     await goto(page, '/afinador/estandar');
     await page.locator('[data-id="dadgad"]').click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'afinacion')).toHaveText('DADGAD');
     await expect(row(page, 'afinacion')).toHaveAttribute('data-locked', 'true');
     await expect(row(page, 'afinacion').getByText('Tu elección')).toBeVisible();
@@ -23,7 +23,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
   test('una nueva consigna no pisa tu elección, y Cambiar sí', async ({ page }) => {
     await goto(page, '/afinador/estandar');
     await page.locator('[data-id="dadgad"]').click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await page.locator('#roll').click();
     await expect(value(page, 'afinacion')).toHaveText('DADGAD');
     await page.getByRole('button', { name: 'Cambiar Afinación' }).click();
@@ -37,7 +37,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await page.getByRole('button', { name: 'Euclid.' }).click();
     await page.getByRole('button', { name: 'Subir golpes' }).click();
     await page.locator('#metro-toggle').click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'ritmo')).toContainText('E(4,8)');
     await expect(row(page, 'ritmo').getByRole('button', { name: 'Parar el ritmo' })).toBeVisible();
     await row(page, 'ritmo').getByRole('button', { name: 'Parar el ritmo' }).click();
@@ -48,7 +48,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await goto(page, '/drone');
     await page.getByTestId('drone-stack').selectOption('menor');
     await page.locator('#drone-toggle').click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'drone')).toContainText('Menor');
     await expect(row(page, 'drone').getByRole('button', { name: 'Parar el drone' })).toBeVisible();
     await page.getByRole('button', { name: 'Cerrar el drone' }).click();
@@ -60,15 +60,17 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await expect(page).toHaveURL(/c=/);
     const chords = (await page.getByRole('heading', { level: 1 }).textContent())!;
     const degrees = (await page.getByTestId('degrees').textContent())!;
-    await nav(page, 'Consigna');
-    await expect(value(page, 'armonia')).toHaveText(chords);
+    await nav(page, 'Sorteo');
+    // Los grados mandan; los acordes de esa tónica van abajo, para tocarlos.
+    await expect(value(page, 'armonia')).toHaveText(degrees);
     await expect(row(page, 'armonia').getByTestId('mini-degrees')).toHaveText(degrees);
+    await expect(row(page, 'armonia').getByTestId('mini-chord-name')).toHaveText(chords.split(' – '));
   });
 
   test('forma: arrastrar o agregar bloques llega', async ({ page }) => {
     await goto(page, '/forma?f=AB');
     await page.getByRole('button', { name: 'Agregar sección C' }).click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'forma')).toHaveText('A B C');
   });
 
@@ -78,7 +80,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await page.locator('#draw').click();
     await expect(page.getByTestId('card')).not.toHaveText(before!);
     const text = (await page.getByTestId('card').locator('p').first().textContent())!;
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'carta')).toContainText(text);
   });
 
@@ -86,7 +88,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await countSounds(page);
     await goto(page, '/melodia');
     await page.getByRole('button', { name: 'Ola', exact: true }).click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'melodia')).toContainText('Contorno ola');
     await expect(row(page, 'melodia').getByText('La que armaste en Melodía.')).toBeVisible();
     await page.getByRole('button', { name: 'Oír un ejemplo de melodía' }).click();
@@ -97,7 +99,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await goto(page, '/letras');
     await page.getByRole('button', { name: 'Material' }).click();
     await page.locator('#use-material').click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(row(page, 'letra').getByText('Tu elección')).toHaveCount(0);
     await expect(value(page, 'letra')).toContainText('Imagen:');
   });
@@ -107,7 +109,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await expect(page).toHaveURL(/\?t=/);
     const before = new URL(page.url()).searchParams.get('t');
     for (const name of ['Afinador', 'Ritmo', 'Drone', 'Melodía', 'Forma']) await nav(page, name);
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect.poll(() => new URL(page.url()).searchParams.get('t')).toBe(before);
   });
 
@@ -115,7 +117,7 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await goto(page, '/afinador/estandar');
     await page.locator('[data-id="dadgad"]').click();
     await page.reload();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'afinacion')).toHaveText('DADGAD');
     await expect(page).toHaveURL(/\?t=/);
     const url = page.url();
@@ -159,7 +161,7 @@ test.describe('volver', () => {
 
     await nav(page, 'Afinador');
     await page.locator('[data-id="dadgad"]').click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'afinacion')).toHaveText('DADGAD');
     await page.locator('#undo').click();
     await expect.poll(() => snapshot(page)).toEqual(first);
@@ -342,7 +344,7 @@ test.describe('sonidos del ritmo y caja de ritmos', () => {
   test('la batería también suena en la consigna', async ({ page }) => {
     await goto(page, '/ritmo');
     await page.getByRole('button', { name: 'Batería' }).click();
-    await nav(page, 'Consigna');
+    await nav(page, 'Sorteo');
     await expect(value(page, 'ritmo')).toContainText('Batería');
     const before = await clicks(page);
     await row(page, 'ritmo').getByRole('button', { name: 'Oír el ritmo' }).click();

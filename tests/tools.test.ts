@@ -28,7 +28,9 @@ import {
   simplifyChord,
   smoothBass,
   translateChord,
+  keyOfProgression,
   transposeChord,
+  transposeTo,
 } from '~/core/variations';
 import { FORMULAS } from '~/data/formulas';
 import {
@@ -574,6 +576,20 @@ describe('variar una progresión', () => {
       'Db/F',
     ]);
     expect(transposeChord('Bb', 2, { tonic: 2, mode: 'ionian' })).toBe('C');
+  });
+
+  it('cambiar la tónica mueve los acordes y deja los grados', () => {
+    const key = keyOfProgression(['Em', 'Am', 'F#7', 'Bm'], 4);
+    expect(key).toEqual({ tonic: 4, mode: 'aeolian' });
+    const moved = transposeTo(['Em', 'Am', 'F#7', 'Bm'], key, 9);
+    expect(moved).toEqual(['Am', 'Dm', 'B7', 'Em']);
+    expect(moved.map((name) => degreeOf(name, 9))).toEqual(
+      ['Em', 'Am', 'F#7', 'Bm'].map((name) => degreeOf(name, 4)),
+    );
+    // Sin tónica guardada, manda el primer acorde; un modo guardado se respeta.
+    expect(keyOfProgression(['C', 'Am', 'F', 'G'])).toEqual({ tonic: 0, mode: 'ionian' });
+    expect(keyOfProgression(['Dm', 'G'], 2, 'dorian')).toEqual({ tonic: 2, mode: 'dorian' });
+    expect(transposeTo(['C', 'F', 'G7'], { tonic: 0, mode: 'ionian' }, 10)).toEqual(['Bb', 'Eb', 'F7']);
   });
 
   it('suma la séptima de la tonalidad y vuelve a la tríada', () => {

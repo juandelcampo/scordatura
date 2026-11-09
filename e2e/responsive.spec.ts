@@ -157,7 +157,7 @@ for (const viewport of VIEWPORTS) {
         await expect(menu).toBeHidden();
       }
       const nav = page.getByRole('navigation', { name: 'Principal' });
-      for (const name of ['Consigna', 'Diario', 'Herramientas']) {
+      for (const name of ['Sorteo', 'Diario', 'Herramientas']) {
         await nav.getByRole('link', { name, exact: true }).scrollIntoViewIfNeeded();
         await expect(nav.getByRole('link', { name, exact: true })).toBeInViewport();
       }

@@ -185,7 +185,7 @@ test.describe('con todos los editores a la vista', () => {
     );
     await page.getByTestId('song-drone-stack').selectOption('tritono');
     await expect(page.getByTestId('song-drone')).toContainText('Tritono');
-    await openSection(page, 'Consigna');
+    await openSection(page, 'Sorteo');
     await expect(page.locator('[data-row="drone"]')).toContainText('Tritono');
   });
 

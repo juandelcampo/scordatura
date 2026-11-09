@@ -13,7 +13,6 @@ export default {
     '/afinador',
     '/afinador/tuya',
     '/consigna',
-    '/lienzo',
     '/estudio',
     '/ritmo',
     '/drone',

@@ -426,6 +426,25 @@ export function transposeChord(name: string, semitones: number, next: Key): stri
   return root + chord.suffix + bass;
 }
 
+/**
+ * La tonalidad de una progresión guardada. Las de antes no siempre traen el modo: se deduce del
+ * acorde de la tónica, y si no está, del primero.
+ */
+export function keyOfProgression(chords: readonly string[], tonic?: number, mode?: ModeId): Key {
+  const parsed = chords.map(parseChord).filter((chord): chord is ParsedChord => chord !== null);
+  const center = tonic ?? parsed[0]?.root ?? 0;
+  if (mode) return { tonic: center, mode };
+  const home = parsed.find((chord) => chord.root === center) ?? parsed[0];
+  return { tonic: center, mode: home?.intervals.includes(3) ? 'aeolian' : 'ionian' };
+}
+
+/** La misma progresión con otra tónica: los grados no cambian, cambian los acordes. */
+export function transposeTo(chords: readonly string[], key: Key, tonic: number): string[] {
+  const next = { tonic: ((tonic % 12) + 12) % 12, mode: key.mode };
+  const semitones = (next.tonic - key.tonic + 12) % 12;
+  return chords.map((name) => transposeChord(name, semitones, next));
+}
+
 /** Le suma la séptima que le corresponde según la tonalidad; lo que ya tiene color no se toca. */
 export function enrichChord(name: string, key: Key): string {
   const chord = anatomy(name);

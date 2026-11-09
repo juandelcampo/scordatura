@@ -80,7 +80,7 @@ En el Estudio, cada sección además guarda cuántos compases dura y si lleva dr
 
 ### El lienzo
 
-`/lienzo` es la canción como proyecto: un proyecto es una canción. Las secciones forman el tema y cada carril (Armonía, Melodía, Ritmo, Letra, más las Tomas) pone en cada sección una variante de la biblioteca del proyecto. La consigna queda arriba: propone, sortea y chequea cada celda con ✓ o ✗.
+Por ahora no tiene ruta: la vista se sacó y el código queda para rescatar piezas. Era la canción como proyecto: un proyecto es una canción. Las secciones forman el tema y cada carril (Armonía, Melodía, Ritmo, Letra, más las Tomas) pone en cada sección una variante de la biblioteca del proyecto. La consigna queda arriba: propone, sortea y chequea cada celda con ✓ o ✗.
 
 - **Modelo** (`core/lienzo/types.ts`): los acordes se guardan por grado y con duración en compases, así cambiar la tónica transporta todo. Armonía, melodía y ritmo de una repetición son los de su raíz; la letra es propia de cada sección.
 - **Core** (`core/lienzo/`): armonía y grados, ritmo por paso sobre `core/rhythm`, melodía por sílabas sobre los contornos de `core/melody`, letra con la métrica de `core/spanish`, forma y contraste, círculo, digitaciones para cualquier afinación, Tus reglas, la agenda de lo que suena por compás y el MIDI.
@@ -102,7 +102,7 @@ Es un requisito, no un detalle:
 - **Una afinación:** una entrada en `data/tunings.ts`. El acorde al aire, los intervalos, los avisos y su página estática se generan solos.
 - **Una carta:** una entrada en `data/cards.ts`.
 - **Un ejemplo de forma:** una entrada en `data/forms.ts`.
-- **Una herramienta:** una carpeta en `features/`, su ruta en `routes.ts` y en `react-router.config.ts`, su entrada en `features/herramientas/HerramientasRoute.tsx` y en `routes` de `shell/AppShell.tsx`, y su nombre en `FEATURES` de `eslint.config.js`.
+- **Una herramienta:** una carpeta en `features/`, su ruta en `routes.ts` (dentro del layout de la consigna, para que se abra encima de ella en un modal) y en `react-router.config.ts`, su nombre en `TOOL_ROUTES` de `shared/toolModal.ts`, su entrada en `features/herramientas/HerramientasRoute.tsx` y en `routes` de `shell/AppShell.tsx`, y su nombre en `FEATURES` de `eslint.config.js`.
 
 ## Sobre los datos
 

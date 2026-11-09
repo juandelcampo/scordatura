@@ -32,13 +32,13 @@ test.describe('la consigna es la entrada', () => {
   test('el menú tiene tres entradas, y marca dónde cuelga cada pantalla', async ({ page }) => {
     await goto(page, '/ritmo');
     const nav = page.getByRole('navigation', { name: 'Principal' });
-    await expect(nav.getByRole('listitem')).toHaveCount(4);
+    await expect(nav.getByRole('listitem')).toHaveCount(3);
     await expect(nav.getByRole('link', { name: 'Herramientas', exact: true })).toHaveAttribute(
       'aria-current',
       'page',
     );
     await goto(page, '/estudio');
-    await expect(nav.getByRole('link', { name: 'Consigna', exact: true })).toHaveAttribute(
+    await expect(nav.getByRole('link', { name: 'Sorteo', exact: true })).toHaveAttribute(
       'aria-current',
       'page',
     );
@@ -52,10 +52,56 @@ test.describe('la consigna es la entrada', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Consigna');
   });
 
-  test('cada fila abre su herramienta', async ({ page }) => {
+  test('cada fila abre su herramienta encima de la consigna, y al cerrarla se vuelve igual', async ({
+    page,
+  }) => {
+    const errors = watchErrors(page);
     await goto(page, '/');
-    await page.getByRole('link', { name: 'Abrir Letra →' }).click();
+    await expect(page).toHaveURL(/\?t=/);
+    const home = page.url();
+    await page.getByRole('link', { name: 'Abrir Letra' }).click();
     await expect(page).toHaveURL(/\/letras/);
+    const modal = page.getByTestId('tool-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole('heading', { level: 1 })).toHaveText('Letras');
+
+    await page.keyboard.press('Escape');
+    await expect(modal).toHaveCount(0);
+    await expect(page).toHaveURL(home);
+
+    // "Atrás" también cierra, y "Pantalla completa" la deja como página.
+    await page.getByRole('link', { name: 'Abrir Ritmo' }).click();
+    await expect(modal).toBeVisible();
+    await page.goBack();
+    await expect(modal).toHaveCount(0);
+    await page.getByRole('link', { name: 'Abrir Forma' }).click();
+    await modal.getByRole('button', { name: 'Pantalla completa' }).click();
+    await expect(modal).toHaveCount(0);
+    await expect(page).toHaveURL(/\/forma/);
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Consigna');
+    expect(errors).toEqual([]);
+  });
+
+  test('lo que se elige en la herramienta llega a la tarjeta de atrás', async ({ page }) => {
+    await goto(page, '/');
+    await page.getByRole('link', { name: 'Abrir Forma' }).click();
+    const modal = page.getByTestId('tool-modal');
+    await modal.getByRole('button', { name: 'Agregar sección C' }).click();
+    await page.locator('#tool-close').click();
+    await expect(page.locator('[data-row="forma"]')).toHaveAttribute('data-chosen', 'true');
+    await expect(page).toHaveURL(/\/\?t=/);
+  });
+
+  test('en una pantalla de escritorio, las ocho tarjetas entran sin desplazarse', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await goto(page, '/');
+    const rows = page.locator('[data-row]');
+    await expect(rows).toHaveCount(8);
+    // Según el texto que toque, alguna tarjeta puede crecer unos píxeles: la grilla se desplaza, la página no.
+    for (const row of await rows.all()) await expect(row).toBeInViewport({ ratio: 0.9 });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight - innerHeight),
+    ).toBeLessThanOrEqual(0);
   });
 });
 
@@ -112,20 +158,46 @@ test.describe('la idea sale de la app', () => {
   });
 });
 
-test.describe('carta suelta', () => {
-  test('saca una carta sin tocar la consigna, y se puede sumar a ella', async ({ page }) => {
+test.describe('armonía por grados', () => {
+  test('cambiar la tónica transpone los acordes y deja los grados', async ({ page }) => {
+    await goto(page, '/armonia?c=C,Am&k=0&m=ionian');
+    await page.getByRole('button', { name: 'Sumar F', exact: true }).click();
+    await goto(page, '/consigna');
+    const harmony = page.locator('[data-row="armonia"]');
+    const chords = harmony.getByTestId('mini-chord-name');
+    await expect(harmony.getByTestId('mini-degrees')).toHaveText('I – vi – IV');
+    await expect(chords).toHaveText(['C', 'Am', 'F']);
+    await harmony.getByRole('button', { name: 'Tónica D', exact: true }).click();
+    await expect(chords).toHaveText(['D', 'Bm', 'G']);
+    await expect(harmony.getByTestId('mini-degrees')).toHaveText('I – vi – IV');
+    await expect(harmony.getByRole('button', { name: 'Tónica D', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // Queda trabada como tu elección, y sobrevive a recargar.
+    await expect(harmony.getByRole('button', { name: 'Destrabar Armonía' })).toBeVisible();
+    await page.reload();
+    await expect(page.locator('[data-row="armonia"]').getByTestId('mini-chord-name')).toHaveText([
+      'D',
+      'Bm',
+      'G',
+    ]);
+  });
+});
+
+test.describe('la consigna de arriba', () => {
+  test('se cambia ahí mismo, sin abrir nada encima, y no toca lo demás', async ({ page }) => {
     await goto(page, '/');
     await expect(page).toHaveURL(/\?t=/);
-    const before = await page.locator('[data-row="ritmo"] p').first().textContent();
-    await page.locator('#loose-card').click();
-    const card = page.getByTestId('loose-card');
-    await expect(card).toBeVisible();
-    const text = await card.locator('p').first().textContent();
-    await expect(page.locator('[data-row="ritmo"] p').first()).toHaveText(before!);
+    const band = page.locator('[data-row="carta"]');
+    await expect(band.getByRole('heading', { level: 2 })).toHaveText('Consigna');
+    await expect(band.getByRole('link')).toHaveCount(0);
+    const before = await band.locator('p').first().textContent();
+    const rhythm = await page.locator('[data-row="ritmo"] p').first().textContent();
 
-    await card.getByRole('button', { name: 'Ponerla en la consigna' }).click();
-    await expect(card).toBeHidden();
-    await expect(page.locator('[data-row="carta"] p').first()).toContainText(text!);
-    await expect(page.getByRole('button', { name: 'Destrabar Carta' })).toBeVisible();
+    await band.getByRole('button', { name: 'Sacar otra consigna' }).click();
+    await expect(band.locator('p').first()).not.toHaveText(before!);
+    await expect(page.locator('[data-row="ritmo"] p').first()).toHaveText(rhythm!);
+    await expect(page.getByTestId('tool-modal')).toHaveCount(0);
   });
 });
