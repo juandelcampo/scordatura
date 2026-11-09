@@ -65,9 +65,6 @@
   color: var(--muted);
   font-size: 13px;
 }
-.rule strong {
-  color: var(--ink);
-}
 .consigna {
   margin-bottom: 10px;
   padding: 8px 10px;

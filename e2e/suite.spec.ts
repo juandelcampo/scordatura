@@ -7,12 +7,12 @@ const rowValue = (page: import('@playwright/test').Page, id: string) =>
   page.locator(`[data-row="${id}"] p`).first();
 
 test.describe('consigna', () => {
-  test('muestra las ocho filas, cada una con su regla', async ({ page }) => {
+  test('muestra las ocho filas, cada una con su valor', async ({ page }) => {
     const errors = watchErrors(page);
     await goto(page, '/consigna');
     const rows = page.locator('[data-row]');
     await expect(rows).toHaveCount(8);
-    for (let i = 0; i < 8; i++) await expect(rows.nth(i).getByText('Regla →')).toBeVisible();
+    for (let i = 0; i < 8; i++) await expect(rows.nth(i).locator('p').first()).not.toBeEmpty();
     await expect(page).toHaveURL(/\?t=/);
     expect(errors).toEqual([]);
   });

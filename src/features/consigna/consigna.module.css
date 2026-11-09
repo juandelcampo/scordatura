@@ -340,9 +340,6 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.rowRule strong {
-  color: var(--ink);
-}
 /* Lo que se toca ocupa el resto, y su pie queda alineado con el de las tarjetas vecinas. */
 .rowTools {
   display: flex;

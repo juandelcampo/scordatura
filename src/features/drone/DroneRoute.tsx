@@ -130,7 +130,7 @@ export default function DroneRoute() {
       <Slab>
         <PageTitle eyebrow="Drone" title={name}>
           <p>
-            <strong>Regla →</strong> <span data-testid="drone-rule">{rule}</span>
+            <span data-testid="drone-rule">{rule}</span>
           </p>
         </PageTitle>
       </Slab>

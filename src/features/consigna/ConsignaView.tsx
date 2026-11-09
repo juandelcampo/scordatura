@@ -219,13 +219,13 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     );
   };
 
-  /** Lo que hay que respetar y su regla. En la armonía mandan los grados; los acordes van abajo. */
+  /** Lo que hay que respetar y su descripción. En la armonía mandan los grados; los acordes van abajo. */
   const body = (index: number) => {
     const row = ROWS[index]!;
     const state = consigna.rows[index]!;
     const result = results[index]!;
     const foreign = state.risk !== consigna.risk && !state.override;
-    const rule = `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`;
+    const rule = `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
     const isHarmony = row.id === 'armonia';
     return (
       <div className={styles.rowBody}>
@@ -236,9 +236,11 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         >
           {isHarmony ? degrees : result.label}
         </p>
-        <p className={styles.rowRule} title={rule}>
-          <strong>Regla →</strong> {rule}
-        </p>
+        {rule && (
+          <p className={styles.rowRule} title={rule}>
+            {rule}
+          </p>
+        )}
       </div>
     );
   };

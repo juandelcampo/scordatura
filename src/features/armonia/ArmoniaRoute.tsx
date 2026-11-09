@@ -549,7 +549,7 @@ export default function ArmoniaRoute() {
               ))}
             </div>
             <p className={styles.rule} aria-live="polite">
-              <strong>Regla →</strong> <span data-testid="harmony-rule">{rule}</span>
+              <span data-testid="harmony-rule">{rule}</span>
             </p>
           </div>
 

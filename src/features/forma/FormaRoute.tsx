@@ -490,7 +490,7 @@ export default function FormaRoute() {
           title={blocks.join('')}
         >
           <p>
-            <strong>Regla →</strong> <span data-testid="form-rule">{rule}</span>
+            <span data-testid="form-rule">{rule}</span>
           </p>
         </PageTitle>
         <div className={styles.actions}>

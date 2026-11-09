@@ -284,7 +284,7 @@ function ContourTab() {
       <PianoRoll notes={notes} label="Melodía generada" />
       <NoteNames notes={notes} />
       <p className={styles.rule}>
-        <strong>Regla →</strong> {parts.join(', ')}.
+        {parts.join(', ')}.
       </p>
       <div className={styles.chips}>
         <Button
@@ -344,7 +344,7 @@ function MotifTab() {
       <PianoRoll notes={result} label="Motivo transformado" />
       <NoteNames notes={result} />
       <p className={styles.rule} data-testid="motif-rule">
-        <strong>Regla →</strong> {TRANSFORMS[transform].rule}
+        {TRANSFORMS[transform].rule}
       </p>
       <div className={styles.chips}>
         <Button
@@ -396,7 +396,7 @@ function TextTab() {
         {names.join(' · ')}
       </p>
       <p className={styles.rule}>
-        <strong>Regla →</strong> Las letras con nombre de nota usan la notación alemana, como B-A-C-H: B es Si
+        Las letras con nombre de nota usan la notación alemana, como B-A-C-H: B es Si
         bemol, H es Si y S es Mi bemol. Las demás recorren la escala en orden.
       </p>
       <div className={styles.chips}>

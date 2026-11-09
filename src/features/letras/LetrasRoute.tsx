@@ -523,7 +523,7 @@ export default function LetrasRoute() {
             {label}
           </h1>
           <p className={styles.rule} title={rule}>
-            <strong>Regla →</strong> <span data-testid="lyric-rule">{rule}</span>
+            <span data-testid="lyric-rule">{rule}</span>
           </p>
         </div>
         <Button id="roll-lyric" onClick={() => rollConsigna(risk)}>
