@@ -317,9 +317,7 @@ export default function RitmoRoute() {
     <div>
       <Slab>
         <PageTitle eyebrow="Metrónomo raro" title={name}>
-          <p>
-            {rule}
-          </p>
+          <p>{rule}</p>
         </PageTitle>
       </Slab>
 

@@ -283,9 +283,7 @@ function ContourTab() {
 
       <PianoRoll notes={notes} label="Melodía generada" />
       <NoteNames notes={notes} />
-      <p className={styles.rule}>
-        {parts.join(', ')}.
-      </p>
+      <p className={styles.rule}>{parts.join(', ')}.</p>
       <div className={styles.chips}>
         <Button
           variant="primary"
@@ -396,8 +394,8 @@ function TextTab() {
         {names.join(' · ')}
       </p>
       <p className={styles.rule}>
-        Las letras con nombre de nota usan la notación alemana, como B-A-C-H: B es Si
-        bemol, H es Si y S es Mi bemol. Las demás recorren la escala en orden.
+        Las letras con nombre de nota usan la notación alemana, como B-A-C-H: B es Si bemol, H es Si y S es Mi
+        bemol. Las demás recorren la escala en orden.
       </p>
       <div className={styles.chips}>
         <Button

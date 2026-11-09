@@ -225,7 +225,8 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     const state = consigna.rows[index]!;
     const result = results[index]!;
     const foreign = state.risk !== consigna.risk && !state.override;
-    const rule = `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
+    const rule =
+      `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
     const isHarmony = row.id === 'armonia';
     return (
       <div className={styles.rowBody}>
