@@ -339,6 +339,7 @@ test.describe('armonía', () => {
   test('parte de una fórmula en la tónica elegida', async ({ page }) => {
     await goto(page, '/armonia?c=C,F&k=9');
     await page.getByRole('button', { name: 'Fórmulas' }).click();
+    await page.getByRole('button', { name: 'Latina y flamenca' }).click();
     await page.getByTestId('formula-andaluza').click();
     await expect(title(page)).toHaveText('Am – G – F – E');
     await expect(page.getByTestId('harmony-rule')).toContainText('Cadencia andaluza');
@@ -398,6 +399,7 @@ test.describe('armonía', () => {
 
     // Una fórmula trae su propio ritmo armónico.
     await page.getByRole('button', { name: 'Fórmulas' }).click();
+    await page.getByRole('button', { name: 'Jazz', exact: true }).click();
     await page.getByTestId('formula-iiVI').click();
     await expect(page.getByTestId('chord-beats')).toHaveText(['2 t', '2 t', '4 t']);
 

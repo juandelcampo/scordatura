@@ -32,7 +32,7 @@ import {
   transposeChord,
   transposeTo,
 } from '~/core/variations';
-import { FORMULAS } from '~/data/formulas';
+import { FAMILIES, FORMULAS } from '~/data/formulas';
 import {
   CONTOURS,
   exampleMelody,
@@ -667,6 +667,13 @@ describe('variar una progresión', () => {
       for (let tonic = 0; tonic < 12; tonic++) {
         chordsOfFormula(formula, tonic).forEach((chord) => expect(parseChord(chord), chord).not.toBeNull());
       }
+    }
+    expect(new Set(FORMULAS.map((formula) => formula.id)).size).toBe(FORMULAS.length);
+    for (const formula of FORMULAS) {
+      if (formula.beats) expect(formula.beats, formula.id).toHaveLength(formula.degrees.length);
+    }
+    for (const { value } of FAMILIES) {
+      expect(FORMULAS.some((formula) => formula.family === value), value).toBe(true);
     }
     const andaluza = FORMULAS.find((formula) => formula.id === 'andaluza')!;
     expect(chordsOfFormula(andaluza, 9)).toEqual(['Am', 'G', 'F', 'E']);

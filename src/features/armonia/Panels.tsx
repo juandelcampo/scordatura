@@ -11,8 +11,8 @@ import {
   type Key,
   type Variation,
 } from '~/core/variations';
-import { FORMULAS, type Formula } from '~/data/formulas';
-import { Button, Stepper } from '~/shared/ui/ui';
+import { FAMILIES, FORMULAS, type FamilyId, type Formula } from '~/data/formulas';
+import { Button, Stepper, Tabs } from '~/shared/ui/ui';
 import styles from './armonia.module.css';
 
 function Option({
@@ -356,13 +356,15 @@ export function WholePanel({
 }
 
 export function FormulasPanel({ tonic, onPick }: { tonic: number; onPick: (formula: Formula) => void }) {
+  const [family, setFamily] = useState<FamilyId>('pop');
   return (
     <div>
       <p className={styles.hint}>
         Partir de algo conocido para romperlo. Reemplaza la progresión actual, y “Volver” la trae de nuevo.
       </p>
+      <Tabs label="Familia" value={family} options={FAMILIES} onChange={setFamily} />
       <div className={styles.options}>
-        {FORMULAS.map((formula) => {
+        {FORMULAS.filter((formula) => formula.family === family).map((formula) => {
           const chords = chordsOfFormula(formula, tonic);
           return (
             <Option
