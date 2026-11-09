@@ -3,6 +3,7 @@ import type { ModeId } from '~/core/harmony';
 import type { DroneConfig } from '~/core/drone';
 import { drumConfig, type Meter, type RhythmConfig } from '~/core/rhythm';
 import type { Risk } from '~/core/roll';
+import { FORM_FAMILIES, SONG_FORMS, formLetters, formRule } from '~/data/structures';
 
 export interface Constraint {
   label: string;
@@ -292,7 +293,7 @@ export const IMAGE_POOL = {
   ],
 };
 
-export const FORM_POOL: Record<Risk, FormEntry[]> = {
+const BASE_FORMS: Record<Risk, FormEntry[]> = {
   0: [
     {
       label: 'A A A A',
@@ -360,6 +361,21 @@ export const FORM_POOL: Record<Risk, FormEntry[]> = {
       rule: 'Forma invertida: arranca por el clímax y termina por la idea más simple.',
     },
   ],
+};
+
+/** Las formas de la biblioteca entran al sorteo según el riesgo de su familia. */
+const libraryForms = (risk: Risk): FormEntry[] =>
+  SONG_FORMS.filter(
+    (form) => FORM_FAMILIES.find((family) => family.value === form.family)?.risk === risk,
+  ).map((form) => {
+    const blocks = formLetters(form.sections);
+    return { label: blocks.join(' '), blocks, rule: formRule(form) };
+  });
+
+export const FORM_POOL: Record<Risk, FormEntry[]> = {
+  0: [...BASE_FORMS[0], ...libraryForms(0)],
+  1: [...BASE_FORMS[1], ...libraryForms(1)],
+  2: [...BASE_FORMS[2], ...libraryForms(2)],
 };
 
 export const DRONE_POOL: Record<Risk, Array<Omit<DroneConfig, 'root'>>> = {

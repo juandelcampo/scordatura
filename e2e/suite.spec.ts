@@ -235,7 +235,8 @@ test.describe('ritmo', () => {
     await goto(page, '/ritmo');
     await setRisk(page, 'Raro');
     await page.locator('#roll-rhythm').click();
-    await expect(page.locator('[data-testid="rhythm-grid"]')).toBeVisible();
+    // En Raro también puede salir un patrón de batería, que se ve en la caja de ritmos y no en la grilla.
+    await expect(page.getByTestId('rhythm-grid').or(page.getByTestId('drum-machine'))).toBeVisible();
     await expect(page).toHaveURL(/m=/);
   });
 });

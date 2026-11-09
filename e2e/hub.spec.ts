@@ -83,13 +83,16 @@ test.describe('consigna como hub', () => {
     await expect(page.getByTestId('lyric-text')).toHaveValue('En un lugar de la Mancha');
   });
 
-  test('la forma se puede usar para tu canción', async ({ page }) => {
+  test('la forma de la consigna es la de tu canción', async ({ page }) => {
     await goto(page, '/consigna');
     const value = (await row(page, 'forma').locator('p').first().textContent())!;
-    await row(page, 'forma')
-      .getByRole('button', { name: /Usar esta forma|Es tu forma/ })
-      .click();
-    await openSection(page, 'Forma');
+    // Abre la herramienta en un modal encima de la consigna.
+    await row(page, 'forma').getByRole('link', { name: 'Abrir Forma' }).click();
+    await expect(page.getByRole('dialog', { name: 'Forma' }).getByRole('heading', { level: 1 })).toHaveText(
+      value.replaceAll(' ', ''),
+    );
+    // Y queda guardada: la página de Forma muestra la misma.
+    await goto(page, '/forma');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(value.replaceAll(' ', ''));
   });
 

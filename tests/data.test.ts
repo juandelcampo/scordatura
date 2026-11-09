@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { CARDS } from '~/data/cards';
 import { FORM_EXAMPLES } from '~/data/forms';
+import { FORM_FAMILIES, SECTION_TERMS, SONG_FORMS, formLetters, formRule } from '~/data/structures';
+import { isValidBlocks } from '~/shared/project';
 import { FORM_POOL, TUNING_POOL } from '~/data/pools';
 import { GROUPS, SOURCES, TUNINGS } from '~/data/tunings';
 import { isNote, noteToMidi } from '~/core/notes';
@@ -85,6 +87,51 @@ describe('ejemplos de forma', () => {
       expect(example.video, example.song).toMatch(/^[\w-]{11}$/);
       for (const block of example.blocks) expect(block, example.song).toMatch(/^[A-H]$/);
     }
+  });
+});
+
+describe('biblioteca de formas', () => {
+  it('las letras salen del orden de aparición', () => {
+    expect(formLetters(['Estrofa', 'Estribillo', 'Estrofa', 'Estribillo', 'Puente', 'Estribillo'])).toEqual([
+      'A',
+      'B',
+      'A',
+      'B',
+      'C',
+      'B',
+    ]);
+  });
+
+  it('cada forma entra en la línea de tiempo y tiene su explicación', () => {
+    expect(new Set(SONG_FORMS.map((form) => form.id)).size).toBe(SONG_FORMS.length);
+    for (const form of SONG_FORMS) {
+      expect(isValidBlocks(formLetters(form.sections)), form.id).toBe(true);
+      expect(form.about.length, form.id).toBeGreaterThan(40);
+      expect(form.tip.length, form.id).toBeGreaterThan(10);
+    }
+  });
+
+  it('todas entran al sorteo, en el nivel de riesgo de su familia', () => {
+    const pooled = Object.values(FORM_POOL).flat();
+    for (const form of SONG_FORMS) {
+      expect(
+        pooled.some((entry) => entry.rule === formRule(form)),
+        form.id,
+      ).toBe(true);
+    }
+    const kpop = SONG_FORMS.find((form) => form.id === 'kpop')!;
+    expect(FORM_POOL[1].some((entry) => entry.rule === formRule(kpop))).toBe(true);
+    expect(FORM_POOL[0].some((entry) => entry.rule === formRule(kpop))).toBe(false);
+  });
+
+  it('ninguna familia queda vacía y hay vocabulario sin repetir', () => {
+    for (const family of FORM_FAMILIES) {
+      expect(SONG_FORMS.filter((form) => form.family === family.value).length, family.value).toBeGreaterThan(
+        2,
+      );
+    }
+    expect(SONG_FORMS.length).toBeGreaterThanOrEqual(40);
+    expect(new Set(SECTION_TERMS.map((item) => item.term)).size).toBe(SECTION_TERMS.length);
   });
 });
 

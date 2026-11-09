@@ -5,12 +5,20 @@ import { createRng, randomSeed } from '~/core/rng';
 import { harmonyHref } from '~/core/chords';
 import { rollForm, rollHarmony, rollLyric, rollRhythm } from '~/core/rollers';
 import { FORM_EXAMPLES, type FormExample } from '~/data/forms';
+import {
+  FORM_FAMILIES,
+  SECTION_TERMS,
+  SONG_FORMS,
+  formLetters,
+  formRule,
+  type FormFamilyId,
+} from '~/data/structures';
 import { newConsigna } from '~/core/consigna';
 import { publishToConsigna, useBlocks, useConsigna } from '~/shared/consigna';
 import { isValidBlocks, letterList, useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
-import { Button, PageTitle, Slab, SlabHead } from '~/shared/ui/ui';
+import { Button, PageTitle, Slab, SlabHead, Tabs } from '~/shared/ui/ui';
 import styles from './forma.module.css';
 
 export const meta: MetaFunction = () => [
@@ -18,7 +26,7 @@ export const meta: MetaFunction = () => [
   {
     name: 'description',
     content:
-      'Armá el esqueleto de tu canción con bloques, sorteá formas clásicas y raras, y escuchá ejemplos de cada una.',
+      'Armá el esqueleto de tu canción con bloques, elegí entre más de cuarenta formas (pop, jazz, blues, electrónica, folklore, clásicas y raras) y aprendé qué es cada sección.',
   },
 ];
 
@@ -360,6 +368,74 @@ function Examples() {
   );
 }
 
+function Library({ onUse }: { onUse: (blocks: string[], rule: string) => void }) {
+  const [family, setFamily] = useState<FormFamilyId>('pop');
+  const current = FORM_FAMILIES.find((item) => item.value === family)!;
+  return (
+    <Slab>
+      <SlabHead title="Formas" />
+      <p className={styles.hint}>
+        Cada letra es una sección distinta, y si vuelve la misma música vuelve la misma letra: estrofa,
+        estribillo, estrofa, estribillo, puente, estribillo es ABABCB.
+      </p>
+      <Tabs label="Familia de formas" value={family} options={FORM_FAMILIES} onChange={setFamily} />
+      <p className={styles.familyAbout}>{current.about}</p>
+      <ul className={styles.forms} data-testid="form-library">
+        {SONG_FORMS.filter((form) => form.family === family).map((form) => {
+          const letters = formLetters(form.sections);
+          return (
+            <li key={form.id}>
+              <div className={styles.formHead}>
+                <h3>{form.name}</h3>
+                <Button
+                  variant="mini"
+                  ariaLabel={`Usar la forma ${form.name}`}
+                  onClick={() => onUse(letters, formRule(form))}
+                >
+                  Usar forma
+                </Button>
+              </div>
+              <ol className={styles.strip} aria-label={`${letters.join('')}: ${form.sections.join(', ')}`}>
+                {form.sections.map((section, index) => (
+                  <li key={index} className={styles.cell} data-letter={letters[index]}>
+                    <b>{letters[index]}</b>
+                    <small>{section}</small>
+                  </li>
+                ))}
+              </ol>
+              <p className={styles.formAbout}>{form.about}</p>
+              <p className={styles.formTip}>
+                <strong>Probala →</strong> {form.tip}
+              </p>
+              {form.heard && <p className={styles.formHeard}>Se oye en {form.heard}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </Slab>
+  );
+}
+
+function Vocabulary() {
+  return (
+    <Slab>
+      <SlabHead title="Vocabulario" />
+      <p className={styles.hint}>Qué es cada sección, con su nombre en inglés cuando se usa así.</p>
+      <dl className={styles.terms}>
+        {SECTION_TERMS.map((item) => (
+          <div key={item.term}>
+            <dt>
+              {item.term}
+              {item.english && <span> · {item.english}</span>}
+            </dt>
+            <dd>{item.meaning}</dd>
+          </div>
+        ))}
+      </dl>
+    </Slab>
+  );
+}
+
 export default function FormaRoute() {
   const blocks = useBlocks();
   const sections = useProject((s) => s.sections);
@@ -378,11 +454,14 @@ export default function FormaRoute() {
   }, [params, risk]);
 
   const [undo, setUndo] = useState<Array<{ blocks: string[]; rule: string }>>([]);
-  const roll = () => {
+  const apply = (next: string[], nextRule: string) => {
     setUndo((stack) => [...stack, { blocks, rule }].slice(-30));
+    setBlocks(next);
+    setRule(nextRule);
+  };
+  const roll = () => {
     const rolled = rollForm({ risk, rng: createRng(randomSeed()) });
-    setBlocks(rolled.value.blocks);
-    setRule(rolled.rule);
+    apply(rolled.value.blocks, rolled.rule);
   };
   const goBack = () => {
     const previous = undo[undo.length - 1];
@@ -430,7 +509,9 @@ export default function FormaRoute() {
         <Timeline />
       </Slab>
       <SectionPanel />
+      <Library onUse={apply} />
       <Examples />
+      <Vocabulary />
     </div>
   );
 }
