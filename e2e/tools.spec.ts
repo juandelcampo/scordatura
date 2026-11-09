@@ -752,6 +752,7 @@ test.describe('forma', () => {
     await goto(page, '/forma');
     await page.waitForTimeout(200);
     expect(requests).toEqual([]);
+    await page.getByRole('group', { name: 'Biblioteca' }).getByRole('button', { name: 'Ejemplos' }).click();
     await page.getByRole('button', { name: 'Usar la forma de Yesterday' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('AABABA');
     await page.getByRole('button', { name: 'Oír Yesterday' }).click();

@@ -213,7 +213,7 @@
   border-top: 1px solid var(--ink);
 }
 /* Una lista larga de filas cortas: con lugar, va de a dos en vez de dejar vacío el medio. */
-@container main (min-width: 1000px) {
+@container side (min-width: 1000px) {
   .examples {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -280,7 +280,7 @@
   padding: 12px 0 14px;
   border-top: 1px solid var(--ink);
 }
-@container main (min-width: 1000px) {
+@container side (min-width: 1000px) {
   .forms {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -350,12 +350,12 @@
   gap: 0 32px;
   margin-top: 8px;
 }
-@container main (min-width: 640px) {
+@container side (min-width: 640px) {
   .terms {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@container main (min-width: 1100px) {
+@container side (min-width: 1100px) {
   .terms {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -369,6 +369,18 @@
   font-weight: 900;
   text-transform: uppercase;
 }
+.usedTag {
+  margin-left: 6px;
+  padding: 0 5px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-style: normal;
+}
+.terms > div[data-used='true'] {
+  border-top-color: var(--accent);
+  border-top-width: 3px;
+}
 .terms dt span {
   color: var(--muted);
   font-weight: 400;
@@ -377,4 +389,79 @@
 .terms dd {
   margin: 4px 0 0;
   font-size: 14px;
+}
+
+/* ——— Dos columnas: a la izquierda la forma y su sección; a la derecha, la biblioteca. ——— */
+.work {
+  display: grid;
+  min-width: 0;
+}
+.lead {
+  min-width: 0;
+}
+.side {
+  container: side / inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-top: var(--rule);
+}
+.sideTabs {
+  flex: none;
+  padding: 8px var(--gutter) 0;
+}
+.sideBody {
+  padding: 0 var(--gutter) 16px;
+}
+@container main (min-width: 820px) {
+  .work {
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 42cqi, 580px);
+  }
+  .side {
+    border-top: 0;
+    border-left: var(--rule);
+  }
+}
+
+/* ——— Entera en la pantalla, como Letras: el marco le da la altura y cada lado se desplaza adentro. ——— */
+@media (min-width: 900px) and (min-height: 600px) {
+  .page {
+    height: 100%;
+    overflow-y: auto;
+  }
+  @container main (min-width: 820px) {
+    .page {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .header {
+      flex: none;
+    }
+    /* Un renglón cada uno: el texto se corta con puntos suspensivos sin salirse de su caja. */
+    .header .title,
+    .rule {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
+    }
+    .work {
+      flex: 1;
+      min-height: 0;
+    }
+    .lead {
+      min-height: 0;
+      overflow-y: auto;
+    }
+    .side {
+      min-height: 0;
+    }
+    .sideBody {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+  }
 }

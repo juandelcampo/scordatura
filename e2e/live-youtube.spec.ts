@@ -9,6 +9,7 @@ test('marcar el minuto de una sección y saltar a ella', async ({ page }) => {
   test.setTimeout(60_000);
   const errors = watchErrors(page);
   await goto(page, '/forma');
+  await page.getByRole('group', { name: 'Biblioteca' }).getByRole('button', { name: 'Ejemplos' }).click();
   await page.getByRole('button', { name: 'Oír Yesterday' }).click();
 
   const frame = page.frameLocator('iframe[src*="embed/NrgmdOz227I"]');

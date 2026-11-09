@@ -29,7 +29,7 @@ import { FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { isValidBlocks, letterList, useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
-import { Button, Slab, SlabHead, Stepper, Tabs } from '~/shared/ui/ui';
+import { Button, Segmented, Stepper, Tabs } from '~/shared/ui/ui';
 import styles from './forma.module.css';
 
 export const meta: MetaFunction = () => [
@@ -344,8 +344,7 @@ function ExamplePlayer({ example }: { example: FormExample }) {
 function Examples({ onUse }: { onUse: (value: RowOverrides['forma']) => void }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
-    <Slab>
-      <SlabHead title="Ejemplos" />
+    <>
       <p className={styles.hint}>La estructura está simplificada para ver la idea de cada forma.</p>
       <ul className={styles.examples}>
         {FORM_EXAMPLES.map((example) => {
@@ -385,7 +384,7 @@ function Examples({ onUse }: { onUse: (value: RowOverrides['forma']) => void }) 
           );
         })}
       </ul>
-    </Slab>
+    </>
   );
 }
 
@@ -393,8 +392,7 @@ function Library({ onUse }: { onUse: (value: RowOverrides['forma']) => void }) {
   const [family, setFamily] = useState<FormFamilyId>('pop');
   const current = FORM_FAMILIES.find((item) => item.value === family)!;
   return (
-    <Slab>
-      <SlabHead title="Formas" />
+    <>
       <p className={styles.hint}>
         Cada letra es una sección distinta, y si vuelve la misma música vuelve la misma letra: estrofa,
         estribillo, estrofa, estribillo, puente, estribillo es ABABCB.
@@ -435,29 +433,38 @@ function Library({ onUse }: { onUse: (value: RowOverrides['forma']) => void }) {
           );
         })}
       </ul>
-    </Slab>
+    </>
   );
 }
 
+/** Qué es cada sección. Las que tiene la forma de ahora van marcadas. */
 function Vocabulary() {
+  const { names } = useForm();
+  const used = new Set(
+    Object.values(names)
+      .filter((name): name is string => !!name)
+      .map((name) => name.toLowerCase()),
+  );
   return (
-    <Slab>
-      <SlabHead title="Vocabulario" />
+    <>
       <p className={styles.hint}>Qué es cada sección, con su nombre en inglés cuando se usa así.</p>
       <dl className={styles.terms}>
         {SECTION_TERMS.map((item) => (
-          <div key={item.term}>
+          <div key={item.term} data-used={used.has(item.term.toLowerCase())}>
             <dt>
               {item.term}
               {item.english && <span> · {item.english}</span>}
+              {used.has(item.term.toLowerCase()) && <em className={styles.usedTag}>En tu forma</em>}
             </dt>
             <dd>{item.meaning}</dd>
           </div>
         ))}
       </dl>
-    </Slab>
+    </>
   );
 }
+
+type SideId = 'formas' | 'ejemplos' | 'vocabulario';
 
 export default function FormaRoute() {
   const form = useForm();
@@ -465,6 +472,7 @@ export default function FormaRoute() {
   const sections = useProject((s) => s.sections);
   const risk = useSettings((s) => s.risk);
   const [selected, setSelected] = useState(0);
+  const [side, setSide] = useState<SideId>('formas');
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const loaded = useRef(false);
@@ -538,11 +546,32 @@ export default function FormaRoute() {
           </Button>
         </div>
       </header>
-      <Timeline selected={selected} onSelect={setSelected} />
-      <SectionPanel />
-      <Library onUse={apply} />
-      <Examples onUse={apply} />
-      <Vocabulary />
+      <div className={styles.work}>
+        <div className={styles.lead}>
+          <Timeline selected={selected} onSelect={setSelected} />
+          <SectionPanel />
+        </div>
+        <aside className={styles.side} aria-label="Biblioteca">
+          <div className={styles.sideTabs}>
+            <Segmented<SideId>
+              label="Biblioteca"
+              value={side}
+              onChange={setSide}
+              stretch
+              options={[
+                { value: 'formas', label: 'Formas' },
+                { value: 'ejemplos', label: 'Ejemplos' },
+                { value: 'vocabulario', label: 'Vocabulario' },
+              ]}
+            />
+          </div>
+          <div className={styles.sideBody} data-testid={`panel-${side}`}>
+            {side === 'formas' && <Library onUse={apply} />}
+            {side === 'ejemplos' && <Examples onUse={apply} />}
+            {side === 'vocabulario' && <Vocabulary />}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

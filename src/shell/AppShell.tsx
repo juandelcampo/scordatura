@@ -214,8 +214,8 @@ export default function AppShell() {
   // Abierta desde la consigna, la herramienta va encima de ella; si se llegó directo, es una página.
   const modal = toolFrom !== null && isToolPath(pathname);
   const onConsigna = pathname === '/' || pathname === '/consigna' || modal;
-  // Letras también entra entera en una pantalla de escritorio: cada panel se desplaza adentro.
-  const fitsScreen = pathname.startsWith('/letras');
+  // Letras y Forma también entran enteras en una pantalla de escritorio: cada panel se desplaza adentro.
+  const fitsScreen = pathname.startsWith('/letras') || pathname.startsWith('/forma');
   // Para la navegación, el modal sigue siendo la consigna.
   const navPathname = modal ? '/' : pathname;
   const songRunning = useSyncExternalStore(

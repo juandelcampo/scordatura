@@ -28,9 +28,30 @@ test('la biblioteca cambia de familia, usa una forma y se puede volver', async (
   await page.locator('#undo-form').click();
   await expect(title).toHaveText('AB');
 
-  await expect(page.getByRole('heading', { name: 'Vocabulario' })).toBeVisible();
-  await expect(page.getByText('pre-chorus')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('el vocabulario marca las secciones de la forma de ahora', async ({ page }) => {
+  await goto(page, '/forma?f=AB');
+  await page.getByRole('button', { name: 'Usar la forma Con puente' }).click();
+  await page.getByRole('group', { name: 'Biblioteca' }).getByRole('button', { name: 'Vocabulario' }).click();
+  await expect(page.getByText('pre-chorus')).toBeVisible();
+  await expect(page.getByTestId('panel-vocabulario').locator('[data-used="true"] dt')).toHaveText([
+    /^Estrofa/,
+    /^Estribillo/,
+    /^Puente/,
+  ]);
+});
+
+test('en escritorio entra en una pantalla: la biblioteca se desplaza adentro', async ({ page }) => {
+  await goto(page, '/forma?f=AB');
+  await expect(page.getByTestId('timeline')).toBeInViewport();
+  await expect(page.getByRole('group', { name: 'Biblioteca' })).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(
+    0,
+  );
+  const body = page.getByTestId('panel-formas');
+  expect(await body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
 });
 
 test('en el teléfono la biblioteca no desborda la página', async ({ page }) => {
