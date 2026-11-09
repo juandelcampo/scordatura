@@ -10,6 +10,7 @@ import { Fader } from '~/shared/Fader';
 import { RiskPicker } from '~/shared/RiskPicker';
 import { useSettings } from '~/shared/settings';
 import { useSong } from '~/shared/song';
+import { ContextMenuHost } from '~/shared/ContextMenu';
 import { isToolPath, useToolModal } from '~/shared/toolModal';
 import { Button, Segmented, Stepper } from '~/shared/ui/ui';
 import styles from './shell.module.css';
@@ -312,6 +313,7 @@ export default function AppShell() {
         </main>
         <Dock inStudio={inStudio} />
       </div>
+      <ContextMenuHost />
     </div>
   );
 }

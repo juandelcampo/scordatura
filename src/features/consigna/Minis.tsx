@@ -14,10 +14,11 @@ import { BAR, melodyExample, type MelodyKind } from '~/core/melodyRules';
 import { noteLabel, noteToMidi, splitNote } from '~/core/notes';
 import { clampBpm, type RhythmConfig } from '~/core/rhythm';
 import { createRng } from '~/core/rng';
-import { diatonicChords, MAX_CHORDS, spellInKey, type Key } from '~/core/variations';
+import { diatonicChords, MAX_CHORDS, MIN_CHORDS, spellInKey, type Key } from '~/core/variations';
 import { DEFAULT_BARS, MAX_BARS } from '~/core/song';
 import { metricCount, wordsIn } from '~/core/spanish';
 import { useForm } from '~/shared/consigna';
+import { contextMenu } from '~/shared/ContextMenu';
 import { FormLegend, FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { PianoRoll } from '~/shared/PianoRoll';
 import { useProject } from '~/shared/project';
@@ -161,6 +162,21 @@ export function MiniTuning({
               type="button"
               aria-label={`Oír cuerda ${notes.length - index}: ${noteLabel(note, notation)}`}
               onClick={() => pluckString(index, midis[index]!, { a4 })}
+              onContextMenu={contextMenu(
+                () => [
+                  {
+                    label: `▶ Oír ${noteLabel(note, notation)}`,
+                    onSelect: () => pluckString(index, midis[index]!, { a4 }),
+                  },
+                  {
+                    label: '▶ Toda la afinación',
+                    onSelect: () => play(1.5, () => strum(midis, a4)),
+                  },
+                  null,
+                  { label: 'Afinar con el micrófono', onSelect: () => onTuning(true) },
+                ],
+                `Cuerda ${notes.length - index}`,
+              )}
             >
               {noteLabel(note, notation)}
               <sub>{splitNote(note).octave}</sub>
@@ -342,6 +358,8 @@ export function MiniHarmony({
   locks,
   onLock,
   onAdd,
+  onRemove,
+  onMove,
 }: {
   chords: string[];
   harmonyKey: Key;
@@ -352,10 +370,19 @@ export function MiniHarmony({
   locks?: readonly boolean[];
   onLock?: (index: number) => void;
   onAdd?: (chord: string) => void;
+  onRemove?: (index: number) => void;
+  onMove?: (index: number, to: number) => void;
 }) {
   const a4 = useSettings((s) => s.a4);
   const notation = useSettings((s) => s.notation);
   const { playing, play, stop } = usePlayback();
+  // Un acorde suelto tiene su propio reloj: si usara el de la progresión, su botón pasaría a "Parar"
+  // y el pie se correría bajo el puntero (el segundo clic de un doble clic caería en otro lado).
+  const single = usePlayback();
+  const hit = (midis: number[]) => {
+    if (playing) stop();
+    single.play(1.5, () => strum(midis, a4));
+  };
   const shapeOf = (name: string) => {
     const parsed = parseChord(name);
     const voicing = parsed ? voicingFor(tuningNotes, name) : null;
@@ -370,6 +397,41 @@ export function MiniHarmony({
   const tonicName = (tonic: number) => noteLabel(`${spell(tonicSpelling(tonic))}4`, notation);
   const frets = (shape: ReturnType<typeof shapeOf>) =>
     shape.voicing ? shape.voicing.frets.map((fret) => fret ?? 'x').join(' ') : 'sin digitación';
+  const canAdd = !!onAdd && chords.length < MAX_CHORDS;
+  /** Un acorde de la progresión: oírlo, trabarlo, moverlo o sacarlo. */
+  const chordMenu = (shape: ReturnType<typeof shapeOf>, index: number) =>
+    contextMenu(
+      () => [
+        { label: `▶ Oír ${shape.name}`, onSelect: () => hit(shape.midis) },
+        null,
+        onLock && {
+          label: 'Trabado',
+          checked: Boolean(locks?.[index]),
+          onSelect: () => onLock(index),
+        },
+        onMove && {
+          label: '← Antes',
+          disabled: index === 0,
+          onSelect: () => onMove(index, index - 1),
+        },
+        onMove && {
+          label: 'Después →',
+          disabled: index === chords.length - 1,
+          onSelect: () => onMove(index, index + 1),
+        },
+        onAdd && {
+          label: 'Repetirlo',
+          disabled: !canAdd,
+          onSelect: () => onAdd(shape.name),
+        },
+        onRemove && {
+          label: 'Quitar de la progresión',
+          disabled: chords.length <= MIN_CHORDS,
+          onSelect: () => onRemove(index),
+        },
+      ],
+      `${degreeOf(shape.name, harmonyKey.tonic) ?? ''} ${shape.name}`.trim(),
+    );
   return (
     <div className={styles.mini}>
       <div className={styles.tonics}>
@@ -420,13 +482,25 @@ export function MiniHarmony({
                   <button
                     type="button"
                     aria-label={`Oír ${name}, que no está en la progresión`}
-                    title={frets(shape)}
-                    onClick={() => play(1.5, () => strum(shape.midis, a4))}
+                    title={canAdd ? `${frets(shape)} · doble clic: sumarlo` : frets(shape)}
+                    onClick={() => hit(shape.midis)}
+                    onDoubleClick={() => canAdd && onAdd(name)}
+                    onContextMenu={contextMenu(
+                      () => [
+                        { label: `▶ Oír ${name}`, onSelect: () => hit(shape.midis) },
+                        onAdd && {
+                          label: 'Sumar a la progresión',
+                          disabled: !canAdd,
+                          onSelect: () => onAdd(name),
+                        },
+                      ],
+                      `${degreeOf(name, harmonyKey.tonic) ?? ''} ${name} · afuera`.trim(),
+                    )}
                   >
                     <small>{degreeOf(name, harmonyKey.tonic)}</small>
                     {name}
                   </button>
-                  {onAdd && chords.length < MAX_CHORDS && (
+                  {canAdd && (
                     <button
                       type="button"
                       aria-label={`Sumar ${name} a la progresión`}
@@ -464,12 +538,15 @@ export function MiniHarmony({
               key={`${shape.name}-${index}`}
               className={styles.chord}
               data-locked={onLock ? Boolean(locks?.[index]) : undefined}
+              onContextMenu={chordMenu(shape, index)}
             >
               <button
                 type="button"
                 className={styles.chordPlay}
                 aria-label={`Oír ${shape.name}`}
-                onClick={() => play(1.5, () => strum(shape.midis, a4))}
+                title={onLock ? 'Doble clic: trabarlo · clic derecho: más' : undefined}
+                onClick={() => hit(shape.midis)}
+                onDoubleClick={() => onLock?.(index)}
               >
                 <strong data-testid="mini-chord-name">{shape.name}</strong>
                 <small data-testid="mini-frets">{frets(shape)}</small>
@@ -641,9 +718,12 @@ export function MiniLyric({ syllables }: { syllables?: number }) {
 export function MiniForm({
   selected,
   onSelect,
+  onOpenForm,
 }: {
   selected: number | null;
-  onSelect: (index: number | null) => void;
+  /** Con `keep`, el bloque queda elegido aunque ya lo estuviera. */
+  onSelect: (index: number | null, keep?: boolean) => void;
+  onOpenForm?: () => void;
 }) {
   const { blocks, names } = useForm();
   const player = useSongPlayer();
@@ -660,6 +740,34 @@ export function MiniForm({
         selected={selected ?? undefined}
         active={letter}
         onSelect={onSelect}
+        onDouble={(index) => {
+          onSelect(index, true);
+          player.playFrom(index);
+        }}
+        menu={(index) => {
+          const at = blocks[index]!;
+          const count = useProject.getState().sections[at]?.bars ?? DEFAULT_BARS;
+          return [
+            { label: '▶ Oír desde acá', onSelect: () => player.playFrom(index) },
+            player.running && { label: '■ Parar', onSelect: () => song.stop() },
+            null,
+            index === selected
+              ? { label: 'Toda la canción', onSelect: () => onSelect(null) }
+              : { label: `Ver solo ${at}`, onSelect: () => onSelect(index, true) },
+            {
+              label: `Un compás más (${at}: ${count} cc)`,
+              disabled: count >= MAX_BARS,
+              onSelect: () => updateSection(at, { bars: Math.min(MAX_BARS, count + 1) }),
+            },
+            {
+              label: 'Un compás menos',
+              disabled: count <= 1,
+              onSelect: () => updateSection(at, { bars: Math.max(1, count - 1) }),
+            },
+            null,
+            onOpenForm && { label: 'Abrir Forma ↗', onSelect: onOpenForm },
+          ];
+        }}
       />
       {letter && (
         <div className={styles.controls} data-print="hide">

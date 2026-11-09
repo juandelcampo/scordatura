@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { song } from '~/audio/song';
 import type { SectionNames } from '~/data/structures';
+import { contextMenu, type MenuItem } from './ContextMenu';
 import { useSong } from './song';
 import styles from './ui/formStrip.module.css';
 
@@ -29,6 +30,9 @@ interface FormStripProps {
   onSelect?: (index: number) => void;
   /** Con esto, los bloques se arrastran. "continuing" es el mismo arrastre, para deshacerlo entero. */
   onMove?: (from: number, to: number, continuing: boolean) => void;
+  /** El clic derecho sobre un bloque, y el doble clic (oír desde ahí, en general). */
+  menu?: (index: number) => MenuItem[];
+  onDouble?: (index: number) => void;
 }
 
 /** Cuántos compases entran a lo ancho, con el mínimo que pide cada uno (--per-bar). */
@@ -100,6 +104,8 @@ export function FormStrip({
   active,
   onSelect,
   onMove,
+  menu,
+  onDouble,
 }: FormStripProps) {
   const host = useRef<HTMLOListElement>(null);
   const room = useRoom(host);
@@ -172,6 +178,15 @@ export function FormStrip({
                 aria-pressed={index === selected}
                 aria-label={label}
                 onClick={() => onSelect(index)}
+                onDoubleClick={onDouble ? () => onDouble(index) : undefined}
+                onContextMenu={
+                  menu
+                    ? contextMenu(
+                        () => menu(index),
+                        `${letter}${name ? ` · ${name.toLowerCase()}` : ''} · bloque ${index + 1}`,
+                      )
+                    : undefined
+                }
                 onPointerDown={(event) => {
                   if (!onMove) return;
                   dragging.current = index;
@@ -228,6 +243,11 @@ export function useSongPlayer() {
     plan,
     running,
     toggle: (from = 0) => (running ? song.stop() : song.play(plan, from)),
+    /** Arranca en ese bloque aunque ya esté sonando. */
+    playFrom: (from: number) => {
+      if (song.getState().running) song.stop();
+      song.play(plan, from);
+    },
     /** Compases de cada bloque, tal como suenan. */
     bars: plan.blocks.map((block) => block.bars.length),
   };

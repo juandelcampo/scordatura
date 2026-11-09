@@ -16,6 +16,7 @@ import {
   type RowOverrides,
 } from '~/core/consigna';
 import { DEFAULT_CHORD_BEATS, degreeOf } from '~/core/chords';
+import { MIN_CHORDS } from '~/core/variations';
 import type { DroneConfig } from '~/core/drone';
 import type { ModeId } from '~/core/harmony';
 import type { Note } from '~/core/melody';
@@ -32,24 +33,33 @@ import { ExportMidiButton } from '~/shared/ExportMidiButton';
 import { Mixer } from '~/shared/Fader';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
+import { contextMenu, onFreeDoubleClick, type MenuItem } from '~/shared/ContextMenu';
 import { useToolModal } from '~/shared/toolModal';
 import { Button } from '~/shared/ui/ui';
 import { useHydrated } from '~/shared/useHydrated';
 import styles from './consigna.module.css';
 import { MiniDrone, MiniForm, MiniHarmony, MiniLyric, MiniMelody, MiniRhythm, MiniTuning } from './Minis';
 
+/** Abre una herramienta encima de la consigna: lo usan el nombre de la tarjeta y sus atajos. */
+function useOpenTool() {
+  const navigate = useNavigate();
+  const open = useToolModal((s) => s.open);
+  return (to: string) => {
+    open(`${window.location.pathname}${window.location.search}`);
+    void navigate(to);
+  };
+}
+
 /**
  * El nombre de la tarjeta abre su herramienta encima de la consigna. Con Ctrl o el botón del medio
  * sigue siendo un link común.
  */
 function OpenTool({ to, name }: { to: string; name: string }) {
-  const navigate = useNavigate();
-  const open = useToolModal((s) => s.open);
+  const openTool = useOpenTool();
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    open(`${window.location.pathname}${window.location.search}`);
-    void navigate(to);
+    openTool(to);
   };
   return (
     <Link
@@ -84,6 +94,8 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
   const [mixerOpen, setMixerOpen] = useState(false);
   const [tuning, setTuning] = useState(false);
   const loaded = useRef(false);
+  const navigate = useNavigate();
+  const openTool = useOpenTool();
 
   // Primer montaje: el link compartido manda; si no hay, sigue la que estaba o se sortea una nueva.
   useEffect(() => {
@@ -159,8 +171,9 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
   const section = useProject((s) => (letter ? s.sections[letter] : undefined));
   const updateSection = useProject((s) => s.updateSection);
   const setActive = useProject((s) => s.setActive);
-  const chooseBlock = (index: number | null) => {
-    const next = index === focus ? null : index;
+  /** Tocar el bloque elegido lo suelta; con `keep`, queda elegido igual (el doble clic). */
+  const chooseBlock = (index: number | null, keep = false) => {
+    const next = index === focus && !keep ? null : index;
     setFocus(next);
     if (next !== null) setActive(blocks[next] ?? 'A');
   };
@@ -220,6 +233,39 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     });
   };
 
+  /**
+   * La progresión con otro orden o sin algún acorde: `order` dice qué acorde de antes va en cada
+   * lugar. Los tiempos y los candados viajan con su acorde.
+   */
+  const reorderChords = (order: number[]) => {
+    if (letter && ownChords) {
+      const beats = section?.chordBeats;
+      updateSection(letter, {
+        chords: order.map((i) => ownChords[i]!),
+        ...(beats ? { chordBeats: order.map((i) => beats[i] ?? DEFAULT_CHORD_BEATS) } : {}),
+      });
+      return;
+    }
+    const beats = base.beats;
+    publishToConsigna('armonia', {
+      chords: order.map((i) => base.chords[i]!),
+      tonic: baseKey.tonic,
+      mode: baseKey.mode,
+      ...(beats ? { beats: order.map((i) => beats[i] ?? DEFAULT_CHORD_BEATS) } : {}),
+    });
+    setChordLocks(order.map((i) => locks[i]!));
+  };
+  const indices = harmony.chords.map((_, i) => i);
+  const removeChord = (index: number) => {
+    if (harmony.chords.length > MIN_CHORDS) reorderChords(indices.filter((i) => i !== index));
+  };
+  const moveChord = (index: number, to: number) => {
+    if (to < 0 || to >= harmony.chords.length || to === index) return;
+    const order = indices.filter((i) => i !== index);
+    order.splice(to, 0, index);
+    reorderChords(order);
+  };
+
   // Acordes trabados uno por uno: "Cambiar" y "Nueva consigna" sortean los demás en el mismo tono.
   const [chordLocks, setChordLocks] = useState<boolean[]>([]);
   const locks = base.chords.map((_, index) => Boolean(chordLocks[index]));
@@ -271,6 +317,8 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
             tuningNotes={tuningNotes}
             onTonic={setTonic}
             onAdd={addChord}
+            onRemove={removeChord}
+            onMove={moveChord}
             {...(ownChords ? {} : { onMode: setMode })}
             {...(letter ? {} : { locks, onLock: toggleChordLock })}
           />
@@ -288,7 +336,13 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
       case 'letra':
         return <MiniLyric {...(lyricTarget ? { syllables: lyricTarget } : {})} />;
       case 'forma':
-        return <MiniForm selected={focus} onSelect={chooseBlock} />;
+        return (
+          <MiniForm
+            selected={focus}
+            onSelect={chooseBlock}
+            onOpenForm={() => openTool(results[index]!.href ?? '/forma')}
+          />
+        );
       case 'drone':
         return (
           <MiniDrone
@@ -359,13 +413,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
           <Button
             variant="mini"
             ariaLabel={band ? `Sacar otra ${row.name.toLowerCase()}` : `Cambiar ${row.name}`}
-            onClick={() =>
-              change(
-                row.id === 'armonia' && someChordLocked
-                  ? rerollHarmonyKeeping(consigna, locks)
-                  : rerollRow(consigna, index),
-              )
-            }
+            onClick={() => rerollOne(index)}
           >
             {band ? 'Sacar otra' : 'Cambiar'}
           </Button>
@@ -404,13 +452,89 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     );
   };
 
+  /** Cambiar una fila, igual que su botón: en la armonía respeta los acordes trabados. */
+  const rerollOne = (index: number) =>
+    change(
+      ROWS[index]!.id === 'armonia' && someChordLocked
+        ? rerollHarmonyKeeping(consigna, locks)
+        : rerollRow(consigna, index),
+    );
+
+  /** Lo de toda la consigna: va al final de cada menú y es el menú del fondo. */
+  const pageItems = (): MenuItem[] => [
+    { label: allLocked ? 'Todo trabado' : 'Nueva consigna', onSelect: rollAll, disabled: allLocked },
+    { label: '↩ Volver a la anterior', onSelect: undo, disabled: !canUndo },
+    { label: '↪ Rehacer', onSelect: redo, disabled: !canRedo },
+  ];
+  const pageMenu = contextMenu<HTMLDivElement>(
+    () => [
+      ...pageItems(),
+      null,
+      { label: '▶ Escuchar todo', onSelect: () => void navigate('/estudio') },
+      { label: 'Copiar link', onSelect: () => void share() },
+      { label: 'Hoja en PDF', onSelect: () => window.print() },
+    ],
+    () => `Consigna Nº ${number}`,
+  );
+
+  /**
+   * El clic derecho sobre una tarjeta: lo mismo que tiene a mano (abrir, oír, trabar, cambiar), en
+   * un solo lugar. "Oír" es el primer botón de su pie, así dice lo mismo que él (Progresión, Parar…).
+   */
+  const cardMenu = (index: number) =>
+    contextMenu<HTMLElement>((card) => {
+      const row = ROWS[index]!;
+      const state = consigna.rows[index]!;
+      const href = results[index]!.href;
+      const play = card.querySelector<HTMLButtonElement>(
+        `.${styles.foot} button, .${styles.stripPlay} button`,
+      );
+      const section = sectionRow(row.id) ? row.id : null;
+      return [
+        href && row.id !== 'carta'
+          ? { label: `Abrir ${row.name} ↗`, onSelect: () => openTool(href) }
+          : undefined,
+        play ? { label: play.textContent?.trim() || 'Oír', onSelect: () => play.click() } : undefined,
+        null,
+        ...(section
+          ? [
+              ownOf(section) && {
+                label: `Volver a la de la consigna en ${letter}`,
+                onSelect: () => backToConsigna(section),
+              },
+              {
+                label: ownOf(section) ? `Cambiar solo en ${letter}` : `Otra para ${letter}`,
+                onSelect: () => rollForSection(section),
+              },
+            ]
+          : [
+              {
+                label: 'Trabada',
+                checked: state.locked,
+                onSelect: () => change(toggleLock(consigna, index)),
+              },
+              { label: row.id === 'carta' ? 'Sacar otra' : 'Cambiar', onSelect: () => rerollOne(index) },
+            ]),
+        null,
+        ...pageItems(),
+      ];
+    }, ROWS[index]!.name);
+
+  /** Doble clic en una parte libre de la tarjeta: abre su herramienta. */
+  const cardDouble = (index: number) => {
+    const href = results[index]!.href;
+    return href && ROWS[index]!.id !== 'carta'
+      ? onFreeDoubleClick<HTMLElement>(() => openTool(href))
+      : undefined;
+  };
+
   const cartaIndex = rowIndex('carta');
   const carta = consigna.rows[cartaIndex]!;
   const tuningIndex = rowIndex('afinacion');
   const tuningRow = consigna.rows[tuningIndex]!;
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} onContextMenu={pageMenu}>
       <header className={styles.head}>
         <div className={styles.ident}>
           <h1 className={styles.title}>Consigna</h1>
@@ -456,6 +580,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         data-row="carta"
         data-locked={carta.locked}
         data-chosen={!!carta.override}
+        onContextMenu={cardMenu(cartaIndex)}
       >
         {head(cartaIndex, { band: true })}
         {body(cartaIndex)}
@@ -469,6 +594,8 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         data-locked={tuningRow.locked}
         data-chosen={!!tuningRow.override}
         data-tuning={tuning}
+        onContextMenu={cardMenu(tuningIndex)}
+        onDoubleClick={cardDouble(tuningIndex)}
       >
         {head(tuningIndex)}
         {body(tuningIndex)}
@@ -487,6 +614,8 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
               data-chosen={!!state.override}
               data-section={sectionRow(row.id) ? letter : undefined}
               data-row={row.id}
+              onContextMenu={cardMenu(index)}
+              onDoubleClick={cardDouble(index)}
             >
               {head(index)}
               {body(index)}

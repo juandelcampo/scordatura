@@ -106,6 +106,39 @@ function Timeline({ selected, onSelect }: { selected: number; onSelect: (index: 
         active={active}
         onSelect={select}
         onMove={move}
+        onDouble={(index) => {
+          select(index);
+          player.playFrom(index);
+        }}
+        menu={(index) => [
+          { label: '▶ Oír desde acá', onSelect: () => player.playFrom(index) },
+          player.running && { label: '■ Parar', onSelect: () => player.toggle() },
+          null,
+          { label: '← Mover a la izquierda', disabled: index === 0, onSelect: () => move(index, index - 1) },
+          {
+            label: 'Mover a la derecha →',
+            disabled: index === blocks.length - 1,
+            onSelect: () => move(index, index + 1),
+          },
+          {
+            label: `Repetir ${blocks[index]} al lado`,
+            disabled: blocks.length >= MAX_BLOCKS,
+            onSelect: () => {
+              const next = [...blocks];
+              next.splice(index + 1, 0, blocks[index]!);
+              editBlocks(next);
+              select(index + 1);
+            },
+          },
+          {
+            label: 'Quitar el bloque',
+            disabled: blocks.length <= 1,
+            onSelect: () => {
+              editBlocks(blocks.filter((_, i) => i !== index));
+              onSelect(Math.max(0, Math.min(index, blocks.length - 2)));
+            },
+          },
+        ]}
       />
       <div className={styles.buttons}>
         <Button
