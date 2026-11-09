@@ -13,6 +13,7 @@ import {
 } from '~/data/pools';
 import type { SectionNames } from '~/data/structures';
 import { GROUPS, STANDARD, TUNINGS, type Tuning } from '~/data/tunings';
+import { harmonyHref } from './chords';
 import { rollProgression, type ModeId, type RollOptions } from './harmony';
 import { midiToNote, noteLabel, noteToMidi } from './notes';
 import { describeDrone, droneToParams, type DroneConfig } from './drone';
@@ -78,7 +79,7 @@ export function rollHarmonyWith(
     value: { chords, tonic, mode },
     label: chords.join(' – '),
     rule,
-    href: `/armonia?c=${encodeURIComponent(chords.join(','))}`,
+    href: harmonyHref(chords, undefined, { tonic, mode }),
   };
 }
 

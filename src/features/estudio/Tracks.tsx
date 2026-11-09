@@ -278,11 +278,14 @@ export function Tracks({ selected, onSelect, panel, onPanel, parts }: TracksProp
             onClick={() => open(index, 'acordes')}
           >
             <span className={styles.chords}>
-              {block.changes.map((change, position) => (
-                <span key={position} style={{ flexGrow: change.beats }}>
-                  {change.name}
-                </span>
-              ))}
+              {/* Un acorde que sigue sonando en el compás siguiente no se repite: se lee la progresión. */}
+              {block.changes
+                .filter(
+                  (change, position) => position === 0 || change.name !== block.changes[position - 1]!.name,
+                )
+                .map((change, position) => (
+                  <span key={position}>{change.name}</span>
+                ))}
             </span>
           </button>
         ))}

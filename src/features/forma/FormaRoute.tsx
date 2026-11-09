@@ -29,6 +29,7 @@ import { FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { isValidBlocks, letterList, useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
+import { useSectionHarmony } from '~/shared/song';
 import { Button, Segmented, Stepper, Tabs } from '~/shared/ui/ui';
 import styles from './forma.module.css';
 
@@ -189,6 +190,7 @@ function Timeline({ selected, onSelect }: { selected: number; onSelect: (index: 
 function SectionPanel() {
   const active = useProject((s) => s.active);
   const section = useProject((s) => s.sections[s.active]);
+  const derived = useSectionHarmony(active);
   const updateSection = useProject((s) => s.updateSection);
   const { names } = useForm();
   const risk = useSettings((s) => s.risk);
@@ -229,6 +231,10 @@ function SectionPanel() {
           <dd data-testid="section-chords">
             {section?.chords ? (
               <Link to={harmonyHref(section.chords, section.chordBeats)}>{section.chords.join(' – ')}</Link>
+            ) : derived.how ? (
+              <Link to={harmonyHref(derived.chords, derived.chordBeats)} title={derived.how}>
+                {derived.chords.join(' – ')} · variación de la consigna
+              </Link>
             ) : (
               <Link to="/armonia">La de la consigna · elegir otra</Link>
             )}

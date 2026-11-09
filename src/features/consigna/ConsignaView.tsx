@@ -34,10 +34,12 @@ import { Mixer } from '~/shared/Fader';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
 import { contextMenu, onFreeDoubleClick, type MenuItem } from '~/shared/ContextMenu';
+import { useSectionHarmony } from '~/shared/song';
 import { useToolModal } from '~/shared/toolModal';
 import { Button } from '~/shared/ui/ui';
 import { useHydrated } from '~/shared/useHydrated';
 import styles from './consigna.module.css';
+import { Sheet } from './Sheet';
 import { MiniDrone, MiniForm, MiniHarmony, MiniLyric, MiniMelody, MiniRhythm, MiniTuning } from './Minis';
 
 /** Abre una herramienta encima de la consigna: lo usan el nombre de la tarjeta y sus atajos. */
@@ -180,9 +182,14 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
 
   const ownChords = letter ? section?.chords : undefined;
   const ownRhythm = letter ? section?.rhythm : undefined;
+  // Una sección sin acordes propios toca una variación de la consigna, salvo la primera.
+  const derived = useSectionHarmony(letter);
+  const variation = !!letter && !ownChords && derived.how !== '';
   const harmony: RowOverrides['armonia'] = ownChords
     ? { chords: ownChords, ...(section?.chordBeats ? { beats: section.chordBeats } : {}) }
-    : base;
+    : variation
+      ? { chords: derived.chords, ...(derived.chordBeats ? { beats: derived.chordBeats } : {}) }
+      : base;
   const rhythm = ownRhythm ?? baseRhythm;
   const harmonyKey = ownChords ? keyOfProgression(ownChords) : baseKey;
   const degrees = harmony.chords.map((name) => degreeOf(name, harmonyKey.tonic) ?? '?').join(' – ');
@@ -371,7 +378,11 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
           <h2 className={styles.rowName}>
             {result.href ? <OpenTool to={result.href} name={row.name} /> : row.name}
             <span className={styles.sectionTag} data-own={own}>
-              {own ? `Propio de ${letter}` : `${letter}: la de la consigna`}
+              {own
+                ? `Propio de ${letter}`
+                : id === 'armonia' && variation
+                  ? `${letter}: variación de la consigna`
+                  : `${letter}: la de la consigna`}
             </span>
           </h2>
           <div className={styles.rowActions} data-print="hide">
@@ -437,7 +448,9 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
       ? ownRhythmText.rule
       : ownHarmony
         ? `${ownChords!.join(' – ')}. Solo en la sección ${letter}: las demás siguen con la de la consigna.`
-        : `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
+        : isHarmony && variation
+          ? `${derived.how} Con "Otra para ${letter}" sale una propia.`
+          : `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
     return (
       <div className={styles.rowBody}>
         <p className={styles.rowValue} title={label} data-testid={isHarmony ? 'mini-degrees' : undefined}>
@@ -626,6 +639,19 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
           );
         })}
       </ol>
+
+      <Sheet
+        tuningLabel={results[tuningIndex]!.label}
+        tuningNotes={tuningNotes}
+        rhythmLabel={results[rowIndex('ritmo')]!.label}
+        harmony={{ chords: base.chords, ...(base.beats ? { beats: base.beats } : {}), ...baseKey }}
+        harmonyKey={baseKey}
+        melody={{
+          label: results[rowIndex('melodia')]!.label,
+          kind: melody?.kind ?? null,
+          seed: consigna.rows[rowIndex('melodia')]!.seed,
+        }}
+      />
 
       <p className={styles.sheetLink}>
         Para volver a abrirla: {hydrated ? window.location.origin : ''}/?t={code}

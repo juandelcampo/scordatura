@@ -13,6 +13,8 @@ import type { DroneConfig } from '~/core/drone';
 import { exampleMelody, type Note } from '~/core/melody';
 import type { RhythmConfig } from '~/core/rhythm';
 import { createRng } from '~/core/rng';
+import type { ModeId } from '~/core/harmony';
+import { sectionHarmony, type SectionHarmony } from '~/core/sections';
 import { buildSong, type Song } from '~/core/song';
 import { useBlocks, useConsigna } from './consigna';
 import { useProject } from './project';
@@ -20,7 +22,7 @@ import { useSettings } from './settings';
 
 export interface ConsignaParts {
   tuning: { notes: string[]; label: string };
-  harmony: { chords: string[]; tonic?: number; beats?: number[] };
+  harmony: { chords: string[]; tonic?: number; mode?: ModeId; beats?: number[] };
   rhythm: RhythmConfig;
   melody: { notes: Note[]; chosen: boolean; label: string; rule: string };
   lyric: { label: string; rule: string };
@@ -63,6 +65,24 @@ export function useConsignaParts(): ConsignaParts {
   return useMemo(() => consignaParts(consigna), [consigna]);
 }
 
+/**
+ * Los acordes de una sección: los suyos si los tiene; si no, los que salen de la consigna para
+ * ella (la primera, tal cual; las demás, una variación en el mismo tono).
+ */
+export function useSectionHarmony(letter: string | null | undefined): SectionHarmony & { own: boolean } {
+  const parts = useConsignaParts();
+  const blocks = useBlocks();
+  const own = useProject((s) => (letter ? s.sections[letter]?.chords : undefined));
+  const ownBeats = useProject((s) => (letter ? s.sections[letter]?.chordBeats : undefined));
+  return useMemo(
+    () =>
+      own
+        ? { chords: own, ...(ownBeats ? { chordBeats: ownBeats } : {}), how: '', own: true }
+        : { ...sectionHarmony(letter ?? '', blocks, parts.harmony), own: false },
+    [own, ownBeats, letter, blocks, parts.harmony],
+  );
+}
+
 export function useSong(): Song {
   const parts = useConsignaParts();
   const blocks = useBlocks();
@@ -75,6 +95,7 @@ export function useSong(): Song {
         blocks,
         sections,
         fallback: { chords: parts.harmony.chords, chordBeats: parts.harmony.beats, rhythm: parts.rhythm },
+        derive: (letter) => sectionHarmony(letter, blocks, parts.harmony),
         tuning: parts.tuning.notes,
         melody: parts.melody.notes,
         melodyChosen: parts.melody.chosen,

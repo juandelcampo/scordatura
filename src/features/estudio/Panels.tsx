@@ -26,7 +26,7 @@ import { useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
 import type { ConsignaParts } from '~/shared/song';
-import { useSong } from '~/shared/song';
+import { useSectionHarmony, useSong } from '~/shared/song';
 import { Button } from '~/shared/ui/ui';
 import styles from './estudio.module.css';
 
@@ -336,7 +336,9 @@ export function ChordsPanel({
   const ownBeats = useProject((s) => s.sections[letter]?.chordBeats);
   const updateSection = useProject((s) => s.updateSection);
   const a4 = useSettings((s) => s.a4);
-  const chords = own ?? parts.harmony.chords;
+  // Sin acordes propios, la sección toca lo que sale de la consigna para ella.
+  const derived = useSectionHarmony(letter);
+  const chords = derived.chords;
   const joined = chords.join(' ');
   // El borrador se descarta cuando los acordes cambian desde otro lado (otra sección, un sorteo).
   const [draft, setDraft] = useState({ base: joined, text: joined });
@@ -350,7 +352,7 @@ export function ChordsPanel({
     <Panel
       id="acordes"
       title={`Acordes ${letter}`}
-      origin={`${own ? 'Propios' : 'De la consigna'}, trastes en ${parts.tuning.label}`}
+      origin={`${own ? 'Propios' : derived.how ? 'Variación de la consigna' : 'De la consigna'}, trastes en ${parts.tuning.label}`}
       open={open}
       actions={
         <div className={styles.panelActions}>
@@ -361,7 +363,14 @@ export function ChordsPanel({
           >
             Sortear
           </Button>
-          <Link className={styles.more} to={harmonyHref(chords, ownBeats ?? (own ? undefined : parts.harmony.beats))}>
+          <Link
+            className={styles.more}
+            to={harmonyHref(
+              chords,
+              ownBeats ?? (own ? undefined : derived.chordBeats),
+              own ? undefined : parts.harmony,
+            )}
+          >
             Armonía
           </Link>
         </div>
@@ -415,14 +424,14 @@ export function ChordsPanel({
 }
 
 export function DronePanel({ letter, parts, open }: { letter: string; parts: ConsignaParts; open: boolean }) {
-  const own = useProject((s) => s.sections[letter]?.chords);
+  const sectionChords = useSectionHarmony(letter).chords;
   const config = parts.drone;
   const change = (patch: Partial<DroneConfig>) => {
     // Elegir una raíz o una pila reemplaza a las cuerdas de una afinación, si las había.
     const { notes: _notes, ...rest } = config;
     publishToConsigna('drone', { ...rest, ...patch });
   };
-  const chord = parseChord((own ?? parts.harmony.chords)[0] ?? '');
+  const chord = parseChord(sectionChords[0] ?? '');
   // La raíz del acorde en la octava grave del drone.
   const toChord = () => {
     if (!chord) return;

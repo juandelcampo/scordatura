@@ -251,16 +251,19 @@
 .cell[data-drone='true'][data-selected='true'] {
   box-shadow: inset 0 -5px 0 var(--accent);
 }
+/* Un acorde nunca se corta: si no entran en una línea, pasan a la siguiente. "Em" cortado se lee "E". */
 .chords {
   display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 0 6px;
+  max-height: 100%;
   overflow: hidden;
-  gap: 4px;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 .chords > span {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
+  flex: 1 0 auto;
+  white-space: nowrap;
 }
 .clip {
   display: block;

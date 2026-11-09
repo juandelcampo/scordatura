@@ -3,7 +3,7 @@ import type { MetaFunction } from 'react-router';
 import { stopInstrument, playMelody } from '~/audio/instrument';
 import { openMic, type MicInput } from '~/audio/mic';
 import { parseChord, tensionMap, type TensionKind } from '~/core/chords';
-import { consignaChords, consignaKey } from '~/core/consigna';
+import { consignaKey } from '~/core/consigna';
 import { MODES, type ModeId } from '~/core/harmony';
 import {
   CONTOURS,
@@ -26,6 +26,7 @@ import { createRng, randomSeed } from '~/core/rng';
 import { rollMelody } from '~/core/rollers';
 import { publishToConsigna, useConsigna } from '~/shared/consigna';
 import { useHydrated } from '~/shared/useHydrated';
+import { useSectionHarmony } from '~/shared/song';
 import { Fader } from '~/shared/Fader';
 import { PianoRoll } from '~/shared/PianoRoll';
 import { useProject } from '~/shared/project';
@@ -423,10 +424,9 @@ function TextTab() {
 const KIND_NAMES: Record<TensionKind, string> = { reposo: 'Reposo', tension: 'Tensión', choque: 'Choque' };
 
 function TensionTab() {
-  const section = useProject((s) => s.sections[s.active]);
-  // Sin acordes propios, la sección usa los de la consigna: el mapa arranca en el primero.
-  const fromConsigna = useConsigna((s) => consignaChords(s.consigna).join(' '));
-  const chords = section?.chords ?? (fromConsigna ? fromConsigna.split(' ') : []);
+  const active = useProject((s) => s.active);
+  // Sin acordes propios, la sección toca lo que sale de la consigna: el mapa arranca en el primero.
+  const chords = useSectionHarmony(active).chords;
   const [picked, setChord] = useState<string | null>(null);
   const chord = picked ?? chords[0] ?? 'Am7';
   const parsed = parseChord(chord);

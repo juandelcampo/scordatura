@@ -25,6 +25,8 @@ export interface SongInput {
   sections: Record<string, SongSectionInput | undefined>;
   /** Lo que usa una sección que todavía no tiene lo suyo. */
   fallback: { chords: string[]; chordBeats?: number[]; rhythm: RhythmConfig };
+  /** Los acordes de una sección sin acordes propios, si no son los de la consigna tal cual. */
+  derive?: (letter: string) => { chords: string[]; chordBeats?: number[] };
   tuning: string[];
   melody: Note[];
   /** La melodía la armó la persona. Si no, es un ejemplo y arranca silenciada. */
@@ -127,7 +129,7 @@ function buildBlock(letter: string, input: SongInput): SongBlock {
   const section = input.sections[letter];
   const rhythm = section?.rhythm ?? input.fallback.rhythm;
   const count = section?.bars ?? DEFAULT_BARS;
-  const harmony = section?.chords ? section : input.fallback;
+  const harmony = section?.chords ? section : (input.derive?.(letter) ?? input.fallback);
   let start = 0;
   const bars = Array.from({ length: count }, (_, index): SongBar => {
     const drums = rhythmToDrums(rhythm, index);

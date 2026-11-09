@@ -800,6 +800,13 @@
   .rowRule {
     display: block;
   }
+  /* Las flechas que abren herramientas no sirven en papel. */
+  .open span {
+    display: none;
+  }
+  .sheet {
+    display: block;
+  }
   .sheetLink {
     display: block;
     padding: 10px var(--gutter);
@@ -812,4 +819,67 @@
 .row[data-row='melodia'] figure[data-bars='true'] {
   height: 60px;
   margin: 0;
+}
+
+/* La hoja para tocar: solo en papel. */
+@media screen {
+  .sheet {
+    display: none;
+  }
+}
+.sheet {
+  padding: 12px var(--gutter);
+  border-top: var(--rule);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.sheet h2 {
+  margin-bottom: 6px;
+  font: 900 18px/1.1 var(--heavy);
+  text-transform: uppercase;
+}
+.sheet p {
+  margin: 2px 0;
+}
+.sheetChords {
+  margin: 8px 0;
+  border-collapse: collapse;
+}
+.sheetChords th,
+.sheetChords td {
+  padding: 2px 8px;
+  border: 1px solid var(--ink);
+  text-align: left;
+  white-space: nowrap;
+}
+.sheetChords th {
+  font: 900 14px/1.2 var(--heavy);
+}
+.sheetChords small {
+  font: 400 10px/1 inherit;
+}
+.sheetSection {
+  margin-top: 8px;
+  break-inside: avoid;
+}
+.sheetSection h3 {
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.sheetSection h3 small {
+  font-weight: 400;
+  text-transform: none;
+}
+.sheetLine {
+  font-weight: 700;
+  white-space: pre;
+}
+.sheetLyric {
+  margin: 2px 0 0;
+  font: inherit;
+  white-space: pre-wrap;
+}
+.sheetEmpty {
+  color: var(--muted);
 }

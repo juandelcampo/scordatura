@@ -133,12 +133,13 @@ test.describe('secciones desde la consigna', () => {
     const forma = page.locator('[data-row="forma"]');
     const ritmo = page.locator('[data-row="ritmo"]');
     const armonia = page.locator('[data-row="armonia"]');
-    const before = (await armonia.getByTestId('mini-degrees').textContent())!;
-
     await forma.getByRole('button', { name: /^Bloque 2: sección B/ }).click();
     await expect(ritmo).toHaveAttribute('data-section', 'B');
     await expect(ritmo).toContainText('B: la de la consigna');
     await expect(page.getByRole('textbox', { name: 'Letra de la sección B' })).toBeVisible();
+    // Sin acordes propios, la B toca una variación de la consigna: no suena igual que la A.
+    await expect(armonia).toContainText('B: variación de la consigna');
+    const variation = (await armonia.getByTestId('mini-degrees').textContent())!;
 
     await page.getByRole('button', { name: 'Cambiar Ritmo solo en la sección B' }).click();
     await expect(ritmo).toContainText('Propio de B');
@@ -148,8 +149,8 @@ test.describe('secciones desde la consigna', () => {
     await expect(armonia).toContainText('Propio de B');
     expect((await sectionB(page)).chords?.length).toBeGreaterThan(1);
     await page.getByRole('button', { name: 'Volver a la armonía de la consigna en la sección B' }).click();
-    await expect(armonia).toContainText('B: la de la consigna');
-    await expect(armonia.getByTestId('mini-degrees')).toHaveText(before);
+    await expect(armonia).toContainText('B: variación de la consigna');
+    await expect(armonia.getByTestId('mini-degrees')).toHaveText(variation);
 
     // Con toda la canción, las tarjetas vuelven a ser la consigna y B guarda su ritmo.
     await page.getByRole('button', { name: 'Toda la canción' }).click();

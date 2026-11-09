@@ -38,9 +38,16 @@ export const isChordBeats = (beats: unknown, count: number): beats is number[] =
 export const customBeats = (beats: readonly number[]): number[] | undefined =>
   beats.some((beat) => beat !== DEFAULT_CHORD_BEATS) ? [...beats] : undefined;
 
-export function harmonyHref(chords: readonly string[], beats?: readonly number[]): string {
+/** El link a Armonía. Con la tónica y el modo, la herramienta abre en el mismo tono que la consigna. */
+export function harmonyHref(
+  chords: readonly string[],
+  beats?: readonly number[],
+  key?: { tonic?: number; mode?: string },
+): string {
   const duration = beats && customBeats(beats) ? `&d=${beats.join(',')}` : '';
-  return `/armonia?c=${encodeURIComponent(chords.join(','))}${duration}`;
+  const tonic = key?.tonic === undefined ? '' : `&k=${key.tonic}`;
+  const mode = key?.mode === undefined ? '' : `&m=${key.mode}`;
+  return `/armonia?c=${encodeURIComponent(chords.join(','))}${duration}${tonic}${mode}`;
 }
 
 export interface ParsedChord {

@@ -16,7 +16,7 @@ import {
 } from './drone';
 import { MODES, type ModeId } from './harmony';
 import type { Note } from './melody';
-import { isNote, noteLabel } from './notes';
+import { isNote, noteLabel, noteToMidi } from './notes';
 import { describeRhythm, rhythmFromParams, rhythmToParams, type RhythmConfig } from './rhythm';
 import { createRng, randomSeed, shortHash } from './rng';
 import type { Risk, Rolled, Roller } from './roll';
@@ -76,7 +76,64 @@ export interface Consigna {
 }
 
 export function newConsigna(risk: Risk, seed: () => number = randomSeed): Consigna {
-  return { risk, rows: ROWS.map(() => ({ seed: seed() >>> 0, risk, locked: false })) };
+  const rows: RowState[] = ROWS.map(() => ({ seed: seed() >>> 0, risk, locked: false }));
+  if (risk < 2) {
+    const tuning = tuningNotes(rows[rowIndex('afinacion')]!);
+    rows[rowIndex('armonia')] = fittingHarmony(rows[rowIndex('armonia')]!, risk, tuning, seed);
+  }
+  return { risk, rows };
+}
+
+// ---- La afinación y el tono se hablan ----
+
+/** Las cuerdas al aire de la afinación caen todas dentro de la escala del tono. */
+export function openStringsFit(notes: readonly string[], key: HarmonyKey): boolean {
+  const scale = new Set((MODES[key.mode].steps as readonly number[]).map((step) => (key.tonic + step) % 12));
+  return notes.every((note) => scale.has(((noteToMidi(note) % 12) + 12) % 12));
+}
+
+/** Cuántos sorteos se prueban hasta encontrar uno que encaje. Si ninguno encaja, sale uno cualquiera. */
+const FIT_ATTEMPTS = 64;
+
+const tuningNotes = (row: RowState): string[] =>
+  (resolveRow(rowIndex('afinacion'), row).value as RowOverrides['afinacion']).notes;
+
+/**
+ * En seguro y medio, una armonía nueva cuyo tono contenga las cuerdas al aire: así suenan a favor,
+ * que es para lo que se cambia la afinación. En raro no se busca: el choque también es una consigna.
+ */
+function fittingHarmony(
+  previous: RowState,
+  risk: Risk,
+  tuning: readonly string[],
+  seed: () => number,
+): RowState {
+  const index = rowIndex('armonia');
+  const before = resolveRow(index, previous).label;
+  let first: RowState | null = null;
+  for (let attempt = 0; attempt < FIT_ATTEMPTS; attempt++) {
+    const row: RowState = { seed: seed() >>> 0, risk, locked: false };
+    const rolled = resolveRow(index, row);
+    if (rolled.label === before) continue;
+    first ??= row;
+    if (openStringsFit(tuning, harmonyKey(rolled.value as RowOverrides['armonia']))) return row;
+  }
+  return first ?? freshRow(index, previous, risk, seed);
+}
+
+/** Lo mismo al revés: con la armonía quieta, una afinación nueva que le quede bien. */
+function fittingTuning(previous: RowState, risk: Risk, key: HarmonyKey, seed: () => number): RowState {
+  const index = rowIndex('afinacion');
+  const before = resolveRow(index, previous).label;
+  let first: RowState | null = null;
+  for (let attempt = 0; attempt < FIT_ATTEMPTS; attempt++) {
+    const row: RowState = { seed: seed() >>> 0, risk, locked: false };
+    const rolled = resolveRow(index, row);
+    if (rolled.label === before) continue;
+    first ??= row;
+    if (openStringsFit((rolled.value as RowOverrides['afinacion']).notes, key)) return row;
+  }
+  return first ?? freshRow(index, previous, risk, seed);
 }
 
 const MAX_ATTEMPTS = 16;
@@ -97,10 +154,18 @@ export function rerollAll(
   risk = consigna.risk,
   seed: () => number = randomSeed,
 ): Consigna {
-  return {
-    risk,
-    rows: consigna.rows.map((row, index) => (row.locked ? row : freshRow(index, row, risk, seed))),
-  };
+  const rows = consigna.rows.map((row, index) => (row.locked ? row : freshRow(index, row, risk, seed)));
+  if (risk < 2) {
+    const tuning = rowIndex('afinacion');
+    const harmony = rowIndex('armonia');
+    if (!consigna.rows[harmony]!.locked) {
+      rows[harmony] = fittingHarmony(consigna.rows[harmony]!, risk, tuningNotes(rows[tuning]!), seed);
+    } else if (!consigna.rows[tuning]!.locked) {
+      const key = harmonyKey(resolveRow(harmony, rows[harmony]!).value as RowOverrides['armonia']);
+      rows[tuning] = fittingTuning(consigna.rows[tuning]!, risk, key, seed);
+    }
+  }
+  return { risk, rows };
 }
 
 /** Cambiar una fila a mano descarta lo elegido en la herramienta, y deja de estar trabada. */
@@ -109,10 +174,21 @@ export function rerollRow(consigna: Consigna, index: number, seed: () => number 
     ...consigna,
     rows: consigna.rows.map((row, i) => {
       if (i !== index) return row;
-      const next = freshRow(i, row, consigna.risk, seed);
+      const next = fittedRow(consigna, i, row, seed);
       return { ...next, locked: row.override ? false : row.locked };
     }),
   };
+}
+
+/** Al cambiar sola la afinación o sola la armonía, la nueva busca encajar con la otra. */
+function fittedRow(consigna: Consigna, index: number, row: RowState, seed: () => number): RowState {
+  const { risk } = consigna;
+  if (risk === 2) return freshRow(index, row, risk, seed);
+  if (index === rowIndex('armonia')) {
+    return fittingHarmony(row, risk, tuningNotes(consigna.rows[rowIndex('afinacion')]!), seed);
+  }
+  if (index === rowIndex('afinacion')) return fittingTuning(row, risk, consignaKey(consigna), seed);
+  return freshRow(index, row, risk, seed);
 }
 
 export function toggleLock(consigna: Consigna, index: number): Consigna {
@@ -200,7 +276,7 @@ function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
         value,
         label: value.chords.join(' – '),
         rule: value.rule ?? '',
-        href: harmonyHref(value.chords, value.beats),
+        href: harmonyHref(value.chords, value.beats, { tonic: value.tonic, mode: value.mode }),
       };
     }
     case 'melodia': {
@@ -292,7 +368,14 @@ function droneRow(consigna: Consigna, harmony = harmonyOf(consigna)): Rolled {
 /** Todas las filas resueltas: cada una sale de su semilla, y el drone además sigue a la armonía. */
 export function resolveRows(consigna: Consigna): Rolled[] {
   const rows = consigna.rows.map((row, index) => resolveRow(index, row));
-  rows[rowIndex('drone')] = droneRow(consigna, rows[rowIndex('armonia')]!.value as RowOverrides['armonia']);
+  const harmonyIndex = rowIndex('armonia');
+  const harmony = rows[harmonyIndex]!;
+  rows[rowIndex('drone')] = droneRow(consigna, harmony.value as RowOverrides['armonia']);
+  // Si las cuerdas al aire caen en el tono, la armonía lo dice: es lo que hace sonar la afinación.
+  const tuning = (rows[rowIndex('afinacion')]!.value as RowOverrides['afinacion']).notes;
+  if (harmony.rule && openStringsFit(tuning, harmonyKey(harmony.value as RowOverrides['armonia']))) {
+    rows[harmonyIndex] = { ...harmony, rule: `${harmony.rule} Las cuerdas al aire quedan dentro del tono.` };
+  }
   return rows;
 }
 
