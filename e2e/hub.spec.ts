@@ -144,8 +144,11 @@ test.describe('drone', () => {
     const errors = watchErrors(page);
     await goto(page, '/drone');
     await page.locator('#drone-toggle').click();
+    // Arranca en la tónica de la consigna; subirla a mano la suelta de ahí.
+    const before = await page.getByTestId('drone-root').textContent();
     await page.getByRole('button', { name: 'Subir nota raíz' }).click();
-    await expect(page.getByTestId('drone-root')).toHaveText('D#2');
+    await expect(page.getByTestId('drone-root')).not.toHaveText(before!);
+    await expect(page.getByTestId('drone-follow')).toContainText('a mano');
     await page.getByTestId('drone-stack').selectOption('menor');
     await expect(page.getByTestId('drone-rule')).toContainText('tercera menor');
     await page.getByRole('button', { name: 'Crudo' }).click();
@@ -161,6 +164,7 @@ test.describe('drone', () => {
     await goto(page, '/drone?r=45&s=tritono&t=crudo&b=0.50&m=0.50&d=10');
     await expect(page.getByTestId('drone-root')).toHaveText('A2');
     await expect(page.getByTestId('drone-rule')).toContainText('tritono');
+    await expect(page.getByTestId('drone-follow')).toContainText('a mano');
     await page.locator('#roll-drone').click();
     await expect(page.getByTestId('drone-voices')).not.toBeEmpty();
   });

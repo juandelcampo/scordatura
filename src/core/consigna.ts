@@ -4,8 +4,16 @@
 import { canonical } from './canonical';
 import { harmonyHref, isChordBeats, parseChord } from './chords';
 import { CARDS } from '~/data/cards';
-import { describeDrone, droneFromParams, droneToParams, type DroneConfig } from './drone';
-import type { ModeId } from './harmony';
+import {
+  describeDrone,
+  droneFromParams,
+  droneToParams,
+  followKey,
+  followsTonic,
+  matchMode,
+  type DroneConfig,
+} from './drone';
+import { MODES, type ModeId } from './harmony';
 import type { Note } from './melody';
 import { isNote, noteLabel } from './notes';
 import { describeRhythm, rhythmFromParams, rhythmToParams, type RhythmConfig } from './rhythm';
@@ -187,6 +195,50 @@ export function resolveRow(index: number, row: RowState): Rolled {
   return definition.roll({ risk: row.risk, rng: createRng(row.seed) });
 }
 
+export type HarmonyKey = { tonic: number; mode: ModeId };
+
+/** La tónica y el modo de una armonía: si no los dice, salen del primer acorde. */
+export function harmonyKey(value: { chords: string[]; tonic?: number; mode?: ModeId }): HarmonyKey {
+  const first = parseChord(value.chords[0] ?? '');
+  return {
+    tonic: value.tonic ?? first?.root ?? 9,
+    mode: value.mode ?? (first?.intervals.includes(3) ? 'aeolian' : 'ionian'),
+  };
+}
+
+export function consignaKey(consigna: Consigna): HarmonyKey {
+  const index = rowIndex('armonia');
+  return harmonyKey(resolveRow(index, consigna.rows[index]!).value as RowOverrides['armonia']);
+}
+
+/** El drone de la consigna, ya parado sobre la tónica de la armonía. */
+function droneRow(consigna: Consigna, key = consignaKey(consigna)): Rolled {
+  const index = rowIndex('drone');
+  const row = consigna.rows[index]!;
+  const rolled = resolveRow(index, row);
+  const config = rolled.value as DroneConfig;
+  if (!followsTonic(config)) return rolled;
+  // Lo sorteado también toma la tercera del modo; lo elegido a mano, solo la tónica.
+  const value = row.override ? followKey(config, key) : matchMode(followKey(config, key), key.mode);
+  const { label, rule } = describeDrone(value);
+  return {
+    value,
+    label,
+    rule: `${row.override ? `${CHOSEN} ` : ''}${rule} Sigue la tónica de la armonía.`,
+    href: `/drone?${droneToParams(value)}`,
+  };
+}
+
+/** Todas las filas resueltas: cada una sale de su semilla, y el drone además sigue a la armonía. */
+export function resolveRows(consigna: Consigna): Rolled[] {
+  const rows = consigna.rows.map((row, index) => resolveRow(index, row));
+  const key = harmonyKey(rows[rowIndex('armonia')]!.value as RowOverrides['armonia']);
+  rows[rowIndex('drone')] = droneRow(consigna, key);
+  return rows;
+}
+
+export const consignaDrone = (consigna: Consigna): DroneConfig => droneRow(consigna).value as DroneConfig;
+
 /** Lo que llega de un link puede estar roto o ser malicioso: solo se acepta lo que tiene sentido. */
 function sanitizeOverride(id: RowId, value: unknown): RowOverrides[RowId] | null {
   if (!value || typeof value !== 'object') return null;
@@ -215,10 +267,15 @@ function sanitizeOverride(id: RowId, value: unknown): RowOverrides[RowId] | null
       const chords = raw.chords;
       if (!Array.isArray(chords) || chords.length === 0 || chords.length > 16) return null;
       if (!chords.every((chord) => typeof chord === 'string' && parseChord(chord))) return null;
-      const tonic = typeof raw.tonic === 'number' && raw.tonic >= 0 && raw.tonic < 12 ? raw.tonic : undefined;
+      const tonic =
+        typeof raw.tonic === 'number' && Number.isInteger(raw.tonic) && raw.tonic >= 0 && raw.tonic < 12
+          ? raw.tonic
+          : undefined;
+      const mode = typeof raw.mode === 'string' && Object.hasOwn(MODES, raw.mode) ? (raw.mode as ModeId) : undefined;
       return {
         chords,
         ...(tonic === undefined ? {} : { tonic }),
+        ...(mode === undefined ? {} : { mode }),
         ...(isChordBeats(raw.beats, chords.length) ? { beats: raw.beats } : {}),
       };
     }

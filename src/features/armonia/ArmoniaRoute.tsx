@@ -203,6 +203,19 @@ export default function ArmoniaRoute() {
     publishToConsigna('armonia', {
       chords: names,
       tonic: nextKey.tonic,
+      mode: nextKey.mode,
+      ...(custom ? { beats: custom } : {}),
+    });
+  };
+
+  /** Otra tónica u otro modo con los mismos acordes: llega a la consigna, y el drone lo sigue. */
+  const rekey = (nextTonic: number, nextMode: ModeId | null) => {
+    show(chords, nextTonic, nextMode);
+    const custom = customBeats(beats);
+    publishToConsigna('armonia', {
+      chords,
+      tonic: nextTonic,
+      ...(nextMode === null ? {} : { mode: nextMode }),
       ...(custom ? { beats: custom } : {}),
     });
   };
@@ -247,6 +260,7 @@ export default function ArmoniaRoute() {
       chords: previous.chords,
       ...(custom ? { beats: custom } : {}),
       ...(previous.tonic === null ? {} : { tonic: previous.tonic }),
+      ...(previous.mode === null ? {} : { mode: previous.mode }),
     });
   };
 
@@ -459,7 +473,7 @@ export default function ArmoniaRoute() {
             <select
               value={tonic}
               data-testid="harmony-key"
-              onChange={(event) => show(chords, Number(event.target.value), modeFromUrl)}
+              onChange={(event) => rekey(Number(event.target.value), modeFromUrl)}
             >
               {TONICS.map((name, index) => (
                 <option key={name} value={index}>
@@ -473,7 +487,7 @@ export default function ArmoniaRoute() {
             <select
               value={mode}
               data-testid="harmony-mode"
-              onChange={(event) => show(chords, tonic, event.target.value as ModeId)}
+              onChange={(event) => rekey(tonic, event.target.value as ModeId)}
             >
               {(Object.keys(MODES) as ModeId[]).map((id) => (
                 <option key={id} value={id}>

@@ -56,10 +56,13 @@ import {
   droneFromParams,
   droneToParams,
   droneVoices,
+  followKey,
+  matchMode,
   STACKS,
   type DroneConfig,
   type StackId,
 } from '~/core/drone';
+import { applyOverride, consignaDrone, newConsigna, resolveRows, rowIndex } from '~/core/consigna';
 import {
   assonantKey,
   consonantKey,
@@ -419,6 +422,52 @@ describe('drone', () => {
       expect(droneFromParams(new URLSearchParams(text)), text).toBeNull();
     }
     expect(droneFromParams(new URLSearchParams('r=40&s=quinta&b=99'))!.brightness).toBe(1);
+  });
+
+  it('se para sobre la tónica, en la octava más cercana', () => {
+    // D2 (38) hacia Mi: E2 (40) está más cerca que E1 (28).
+    expect(followKey({ ...DEFAULT_DRONE, root: 38 }, { tonic: 4 }).root).toBe(40);
+    // C3 (48) hacia La: A2 (45) está más cerca que A3 (57).
+    expect(followKey({ ...DEFAULT_DRONE, root: 48 }, { tonic: 9 }).root).toBe(45);
+    const already = { ...DEFAULT_DRONE, root: 40 };
+    expect(followKey(already, { tonic: 4 })).toBe(already);
+  });
+
+  it('sorteado, toma la tercera del modo', () => {
+    expect(matchMode({ ...DEFAULT_DRONE, stack: 'mayor' }, 'dorian').stack).toBe('menor');
+    expect(matchMode({ ...DEFAULT_DRONE, stack: 'menor' }, 'mixolydian').stack).toBe('mayor');
+    expect(matchMode({ ...DEFAULT_DRONE, stack: 'menor9' }, 'lydian').stack).toBe('mayor');
+    expect(matchMode({ ...DEFAULT_DRONE, stack: 'sus4' }, 'aeolian').stack).toBe('sus4');
+    // Elegido a mano solo sigue la tónica: si pediste Menor, queda Menor.
+    expect(followKey({ ...DEFAULT_DRONE, stack: 'menor' }, { tonic: 0 }).stack).toBe('menor');
+  });
+
+  it('elegido a mano o con una afinación, no se mueve', () => {
+    const key = { tonic: 4 } as const;
+    const free = { ...DEFAULT_DRONE, root: 43, free: true };
+    const tuning = { ...DEFAULT_DRONE, notes: ['D2', 'A2'] };
+    expect(followKey(free, key)).toBe(free);
+    expect(followKey(tuning, key)).toBe(tuning);
+    const back = droneFromParams(new URLSearchParams(droneToParams(free).toString()))!;
+    expect(back.free).toBe(true);
+  });
+
+  it('en la consigna sigue a la tónica de la armonía', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      let consigna = newConsigna(1, () => seed * 7919);
+      consigna = applyOverride(consigna, 'armonia', { chords: ['Am', 'F', 'C', 'G'], tonic: 9, mode: 'aeolian' });
+      const config = consignaDrone(consigna);
+      if (!config.notes) expect(config.root % 12, String(seed)).toBe(9);
+      expect(config.stack, String(seed)).not.toBe('mayor');
+      expect(resolveRows(consigna)[rowIndex('drone')]!.value).toEqual(config);
+    }
+    // Cambiar la tónica mueve el drone; uno elegido a mano se queda donde está.
+    let consigna = applyOverride(newConsigna(0, () => 3), 'armonia', { chords: ['C', 'G'], tonic: 7 });
+    expect(consignaDrone(consigna).root % 12).toBe(7);
+    consigna = applyOverride(consigna, 'drone', { ...DEFAULT_DRONE, root: 38, stack: 'menor' });
+    expect(consignaDrone(consigna)).toMatchObject({ root: 43, stack: 'menor' });
+    consigna = applyOverride(consigna, 'drone', { ...DEFAULT_DRONE, root: 41, free: true });
+    expect(consignaDrone(consigna).root).toBe(41);
   });
 });
 

@@ -7,7 +7,7 @@ import {
   newConsigna,
   rerollAll,
   rerollRow,
-  resolveRow,
+  resolveRows,
   rowIndex,
   ROWS,
   toggleLock,
@@ -119,7 +119,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     if (params.get('t') !== code) setParams({ t: code }, { replace: true, preventScrollReset: true });
   }, [code, started, background, params, setParams]);
 
-  const results = useMemo(() => consigna.rows.map((row, index) => resolveRow(index, row)), [consigna]);
+  const results = useMemo(() => resolveRows(consigna), [consigna]);
   const allLocked = consigna.rows.every((row) => row.locked);
 
   const share = async () => {

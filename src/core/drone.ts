@@ -1,4 +1,5 @@
 // Drone: una nota raíz sostenida y las voces que se le apilan encima.
+import { MODES, type ModeId } from './harmony';
 import { midiToNote, noteLabel, isNote, noteToMidi } from './notes';
 
 export const STACKS = {
@@ -77,6 +78,8 @@ export interface DroneConfig {
   detune: number;
   /** Si está, suenan estas notas en lugar de la pila: las cuerdas de una afinación. */
   notes?: string[];
+  /** La nota raíz se eligió a mano: no sigue a la tónica de la armonía. */
+  free?: boolean;
 }
 
 export const DEFAULT_DRONE: DroneConfig = {
@@ -89,6 +92,40 @@ export const DEFAULT_DRONE: DroneConfig = {
 };
 
 export const ROOT_RANGE = [24, 60] as const;
+
+/** Sigue a la tónica: lo normal, salvo que la raíz se haya elegido a mano o suene una afinación. */
+export const followsTonic = (config: DroneConfig) => !config.notes && !config.free;
+
+/** El drone en la tónica de la armonía, en la octava más cercana a la que tenía para no saltar de registro. */
+export function followKey(config: DroneConfig, key: { tonic: number }): DroneConfig {
+  if (!followsTonic(config)) return config;
+  let root = config.root;
+  let distance = Infinity;
+  for (let candidate = ROOT_RANGE[0]; candidate <= ROOT_RANGE[1]; candidate++) {
+    if ((((candidate - key.tonic) % 12) + 12) % 12 !== 0) continue;
+    if (Math.abs(candidate - config.root) < distance) {
+      root = candidate;
+      distance = Math.abs(candidate - config.root);
+    }
+  }
+  return root === config.root ? config : { ...config, root };
+}
+
+/**
+ * Un drone sorteado con tercera toma la del modo: una tercera mayor sobre un modo menor choca.
+ * Lo que se elige a mano no pasa por acá: si pediste Menor, suena Menor.
+ */
+export function matchMode(config: DroneConfig, mode: ModeId): DroneConfig {
+  if (config.notes) return config;
+  const minor = MODES[mode].steps[2] === 3;
+  const stack: StackId =
+    config.stack === 'mayor' && minor
+      ? 'menor'
+      : (config.stack === 'menor' || config.stack === 'menor9') && !minor
+        ? 'mayor'
+        : config.stack;
+  return stack === config.stack ? config : { ...config, stack };
+}
 
 /** Las notas que suenan, en MIDI. */
 export function droneVoices(config: DroneConfig): number[] {
@@ -127,6 +164,7 @@ export function droneToParams(config: DroneConfig): URLSearchParams {
   else {
     params.set('r', String(config.root));
     params.set('s', config.stack);
+    if (config.free) params.set('f', '1');
   }
   return params;
 }
@@ -158,5 +196,6 @@ export function droneFromParams(params: URLSearchParams): DroneConfig | null {
     detune: Math.min(40, Math.max(0, number('d', DEFAULT_DRONE.detune))),
   };
   if (validNotes) config.notes = validNotes;
+  else if (params.get('f') === '1') config.free = true;
   return config;
 }

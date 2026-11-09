@@ -1,7 +1,14 @@
 // El tema tal como lo arman el proyecto y la consigna: lo que suena y lo que dibuja el Estudio.
 import { useMemo } from 'react';
 import { parseChord } from '~/core/chords';
-import { resolveRow, rowIndex, type Consigna, type RowId, type RowOverrides } from '~/core/consigna';
+import {
+  consignaDrone,
+  resolveRow,
+  rowIndex,
+  type Consigna,
+  type RowId,
+  type RowOverrides,
+} from '~/core/consigna';
 import type { DroneConfig } from '~/core/drone';
 import { exampleMelody, type Note } from '~/core/melody';
 import type { RhythmConfig } from '~/core/rhythm';
@@ -47,7 +54,7 @@ export function consignaParts(consigna: Consigna): ConsignaParts {
     },
     lyric: { label: lyric.label, rule: lyric.rule },
     card: row('carta').label,
-    drone: row('drone').value as DroneConfig,
+    drone: consignaDrone(consigna),
   };
 }
 

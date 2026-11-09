@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useSearchParams, type MetaFunction } from 'react-router';
 import { drone } from '~/audio/drone';
+import { consignaKey } from '~/core/consigna';
 import {
   describeDrone,
   droneFromParams,
   droneToParams,
   droneVoices,
+  followKey,
+  followsTonic,
+  matchMode,
   ROOT_RANGE,
   STACKS,
   TIMBRES,
@@ -16,7 +20,7 @@ import {
 import { midiToNote, noteLabel } from '~/core/notes';
 import { createRng, randomSeed } from '~/core/rng';
 import { rollDrone } from '~/core/rollers';
-import { publishToConsigna } from '~/shared/consigna';
+import { publishToConsigna, useConsigna } from '~/shared/consigna';
 import { Fader } from '~/shared/Fader';
 import { useSettings } from '~/shared/settings';
 import { Button, PageTitle, Segmented, Slab, SlabHead, Stepper } from '~/shared/ui/ui';
@@ -80,14 +84,20 @@ export default function DroneRoute() {
   const notation = useSettings((s) => s.notation);
   const [params, setParams] = useSearchParams();
   const loaded = useRef(false);
+  const consigna = useConsigna((s) => s.consigna);
+  const key = useMemo(() => consignaKey(consigna), [consigna]);
 
-  // Un link o la consigna pueden traer un drone en la URL.
+  // Un link o la consigna pueden traer un drone en la URL. Un link que pide otra nota que la
+  // tónica la reproduce tal cual, como elegida a mano; si no, el drone se para sobre la tónica.
   useEffect(() => {
     if (loaded.current) return;
     loaded.current = true;
     const shared = droneFromParams(params);
-    if (shared) drone.setConfig(shared);
-  }, [params]);
+    const offKey = !!shared && followsTonic(shared) && shared.root % 12 !== key.tonic;
+    const config = shared ? (offKey ? { ...shared, free: true } : shared) : drone.getState().config;
+    const tied = followKey(config, key);
+    if (tied !== drone.getState().config) drone.setConfig(tied);
+  }, [params, key]);
 
   useEffect(() => {
     const encoded = droneToParams(drone.getState().config);
@@ -100,8 +110,9 @@ export default function DroneRoute() {
 
   /** Lo que se cambia a mano acá también pasa a la consigna. */
   const apply = (next: DroneConfig) => {
-    drone.setConfig(next);
-    publishToConsigna('drone', next);
+    const tied = followKey(next, key);
+    drone.setConfig(tied);
+    publishToConsigna('drone', tied);
   };
   const goBack = () => {
     const previous = undo[undo.length - 1];
@@ -141,7 +152,7 @@ export default function DroneRoute() {
             id="roll-drone"
             onClick={() => {
               setUndo((stack) => [...stack, config].slice(-30));
-              apply(rollDrone({ risk, rng: createRng(randomSeed()) }).value);
+              apply(matchMode(rollDrone({ risk, rng: createRng(randomSeed()) }).value, key.mode));
             }}
           >
             Sortear drone
@@ -171,6 +182,27 @@ export default function DroneRoute() {
             </Button>
           </p>
         )}
+        {!fromTuning && (
+          <p className={styles.tuningNote} data-testid="drone-follow">
+            {followsTonic(config) ? (
+              'La nota raíz sigue a la tónica de la armonía: si la cambiás allá, el drone la acompaña.'
+            ) : (
+              <>
+                Elegiste la nota a mano: no sigue a la tónica.{' '}
+                <Button
+                  variant="mini"
+                  id="drone-follow-tonic"
+                  onClick={() => {
+                    const { free: _free, ...rest } = config;
+                    apply(rest);
+                  }}
+                >
+                  Seguir la tónica
+                </Button>
+              </>
+            )}
+          </p>
+        )}
         <div className={styles.fields}>
           {!fromTuning && (
             <>
@@ -179,8 +211,12 @@ export default function DroneRoute() {
                 <Stepper
                   label="nota raíz"
                   value={<span data-testid="drone-root">{midiToNote(config.root)}</span>}
-                  onDown={() => apply({ ...config, root: Math.max(ROOT_RANGE[0], config.root - 1) })}
-                  onUp={() => apply({ ...config, root: Math.min(ROOT_RANGE[1], config.root + 1) })}
+                  onDown={() =>
+                    apply({ ...config, root: Math.max(ROOT_RANGE[0], config.root - 1), free: true })
+                  }
+                  onUp={() =>
+                    apply({ ...config, root: Math.min(ROOT_RANGE[1], config.root + 1), free: true })
+                  }
                 />
               </div>
               <label className={styles.field}>

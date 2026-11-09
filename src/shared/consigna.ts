@@ -3,19 +3,24 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { drone } from '~/audio/drone';
 import {
   applyOverride,
+  consignaDrone,
+  consignaKey,
   consignaNumber,
   decodeConsigna,
   encodeConsigna,
   newConsigna,
   resolveRow,
+  resolveRows,
   rowIndex,
   type Consigna,
   type RowId,
   type RowOverrides,
 } from '~/core/consigna';
 import { canonical } from '~/core/canonical';
+import { followKey } from '~/core/drone';
 import { useProject } from './project';
 import { useSettings } from './settings';
 
@@ -116,8 +121,7 @@ export function publishToConsigna<K extends RowId>(
   const store = useConsigna.getState();
   const base = store.started ? store.consigna : newConsigna(useSettings.getState().risk);
   const index = rowIndex(id);
-  const row = base.rows[index]!;
-  const already = row.override ?? resolveRow(index, row).value;
+  const already = resolveRows(base)[index]!.value;
   if (store.started && canonical(already) === canonical(value)) return;
   const next = applyOverride(base, id, value);
   if (continuing) store.load(next);
@@ -144,6 +148,22 @@ function keepActiveInForm(consigna: Consigna): void {
 
 useConsigna.subscribe((state, previous) => {
   if (state.consigna !== previous.consigna) keepActiveInForm(state.consigna);
+});
+
+/**
+ * Si cambia la tónica de la armonía, el drone que está sonando se mueve con ella. Si es el de la
+ * consigna, pasa a ser el nuevo de la consigna; si es otro, solo cambia de nota.
+ */
+useConsigna.subscribe((state, previous) => {
+  if (state.consigna === previous.consigna) return;
+  const key = consignaKey(state.consigna);
+  if (canonical(key) === canonical(consignaKey(previous.consigna))) return;
+  const { config } = drone.getState();
+  const next =
+    canonical(config) === canonical(consignaDrone(previous.consigna))
+      ? consignaDrone(state.consigna)
+      : followKey(config, key);
+  if (canonical(next) !== canonical(config)) drone.setConfig(next);
 });
 
 const DEFAULT_FORM = 'AABA';

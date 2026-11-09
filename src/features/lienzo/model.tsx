@@ -1,9 +1,7 @@
 // Lo que todas las partes del lienzo necesitan saber: el proyecto, la consigna leída como reglas y la
 // sección elegida. Se calcula una vez arriba y se reparte por contexto.
 import { createContext, useContext } from 'react';
-import { encodeConsigna, resolveRow, ROWS, rowIndex, type Consigna, type RowId } from '~/core/consigna';
-import { parseChord } from '~/core/chords';
-import type { ModeId } from '~/core/harmony';
+import { consignaKey, encodeConsigna, resolveRows, ROWS, type Consigna, type RowId } from '~/core/consigna';
 import { fromLegacy } from '~/core/lienzo/legacy';
 import { rulesOf, type LienzoRules, type RuleText } from '~/core/lienzo/rules';
 import { meterLabel } from '~/core/lienzo/rhythm';
@@ -41,9 +39,9 @@ export function useModel(): Model {
 
 export function rowTexts(consigna: Consigna): Record<RowId, RowText> {
   return Object.fromEntries(
-    ROWS.map((row, index) => {
+    resolveRows(consigna).map((rolled, index) => {
       const state = consigna.rows[index]!;
-      const rolled = resolveRow(index, state);
+      const row = ROWS[index]!;
       return [row.id, { label: rolled.label, rule: rolled.rule, locked: state.locked, index }];
     }),
   ) as Record<RowId, RowText>;
@@ -63,18 +61,7 @@ export function rulesFromConsigna(consigna: Consigna, rows = rowTexts(consigna))
   return { parts, rules, meter };
 }
 
-/** La tónica y el modo que propone la consigna. */
-export function consignaKey(consigna: Consigna): { tonic: number; mode: ModeId } {
-  const value = resolveRow(rowIndex('armonia'), consigna.rows[rowIndex('armonia')]!).value as {
-    chords: string[];
-    tonic?: number;
-    mode?: ModeId;
-  };
-  const first = parseChord(value.chords[0] ?? '');
-  const tonic = value.tonic ?? first?.root ?? 9;
-  const mode = value.mode ?? (first?.intervals.includes(3) ? 'aeolian' : 'ionian');
-  return { tonic, mode };
-}
+export { consignaKey };
 
 export function tuningName(notes: string[], fallback: string): string {
   return TUNINGS.find((t) => t.notes.join() === notes.join())?.name ?? fallback;

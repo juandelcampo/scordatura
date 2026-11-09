@@ -54,6 +54,39 @@ test.describe('lo que cambiás en una herramienta aparece en la consigna', () =>
     await page.getByRole('button', { name: 'Cerrar el drone' }).click();
   });
 
+  test('drone: sigue a la tónica de la armonía, salvo que elijas la nota a mano', async ({ page }) => {
+    const errors = watchErrors(page);
+    const root = page.getByTestId('drone-root');
+    await goto(page, '/armonia?c=C,Am,F,G');
+    await page.getByTestId('harmony-key').selectOption('7');
+    await nav(page, 'Drone');
+    await expect(root).toHaveText(/^G\d$/);
+    await expect(page.getByTestId('drone-follow')).toContainText('sigue a la tónica');
+    await nav(page, 'Sorteo');
+    await expect(value(page, 'drone')).toContainText('G ');
+
+    // Con el drone sonando, otra tónica lo mueve sin pararlo.
+    await nav(page, 'Drone');
+    await page.locator('#drone-toggle').click();
+    await nav(page, 'Armonía');
+    await page.getByTestId('harmony-key').selectOption('4');
+    await nav(page, 'Drone');
+    await expect(root).toHaveText(/^E\d$/);
+    await expect(page.locator('#drone-toggle')).toHaveText(/Parar/);
+
+    // A mano se suelta: otra tónica ya no lo mueve, hasta que vuelve a seguirla.
+    await page.getByRole('button', { name: 'Subir nota raíz' }).click();
+    await expect(root).toHaveText(/^F\d$/);
+    await nav(page, 'Armonía');
+    await page.getByTestId('harmony-key').selectOption('9');
+    await nav(page, 'Drone');
+    await expect(root).toHaveText(/^F\d$/);
+    await page.locator('#drone-follow-tonic').click();
+    await expect(root).toHaveText(/^A\d$/);
+    await page.getByRole('button', { name: 'Cerrar el drone' }).click();
+    expect(errors).toEqual([]);
+  });
+
   test('armonía: la progresión sorteada llega con sus grados', async ({ page }) => {
     await goto(page, '/armonia');
     await page.locator('#roll-harmony').click();
