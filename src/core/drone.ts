@@ -1,4 +1,5 @@
 // Drone: una nota raíz sostenida y las voces que se le apilan encima.
+import { chordClasses, parseChord } from './chords';
 import { MODES, type ModeId } from './harmony';
 import { midiToNote, noteLabel, isNote, noteToMidi } from './notes';
 
@@ -125,6 +126,35 @@ export function matchMode(config: DroneConfig, mode: ModeId): DroneConfig {
         ? 'mayor'
         : config.stack;
   return stack === config.stack ? config : { ...config, stack };
+}
+
+/** Pilas con un color propio (tercera, segunda o cuarta) que puede chocar con la armonía. */
+const COLORED: readonly StackId[] = ['mayor', 'menor', 'menor9', 'sus2', 'sus4'];
+
+/**
+ * Un drone sorteado no tiene que pelearse con la progresión. Si su nota de color queda fuera del
+ * modo, o un acorde prestado trae esa misma nota alterada (Sol contra Sol#), pasa a raíz y quinta.
+ * El tritono y el racimo chocan a propósito: esos no se tocan.
+ */
+export function fitToHarmony(
+  config: DroneConfig,
+  key: { tonic: number; mode: ModeId },
+  chords: readonly string[],
+): DroneConfig {
+  if (config.notes || !COLORED.includes(config.stack)) return config;
+  const scale = new Set((MODES[key.mode].steps as readonly number[]).map((step) => (key.tonic + step) % 12));
+  const colors = STACKS[config.stack].steps
+    .map((step) => (((config.root + step) % 12) + 12) % 12)
+    .filter((pc) => pc !== key.tonic % 12 && pc !== (key.tonic + 7) % 12);
+  const foreign = chords.flatMap((name) => {
+    const chord = parseChord(name);
+    return chord ? chordClasses(chord).filter((pc) => !scale.has(pc)) : [];
+  });
+  const clashes = colors.some(
+    (pc) =>
+      !scale.has(pc) || foreign.some((other) => Math.abs(other - pc) === 1 || Math.abs(other - pc) === 11),
+  );
+  return clashes ? { ...config, stack: 'quinta' } : config;
 }
 
 /** Las notas que suenan, en MIDI. */

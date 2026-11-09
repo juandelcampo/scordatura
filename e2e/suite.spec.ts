@@ -179,7 +179,7 @@ test.describe('ritmo', () => {
   test('editar actualiza la regla y la URL', async ({ page }) => {
     await goto(page, '/ritmo');
     await page.getByRole('button', { name: 'Euclid.' }).click();
-    await expect(page.getByText(/es una rotación de el tresillo/)).toBeVisible();
+    await expect(page.getByText(/es una rotación del tresillo/)).toBeVisible();
     await page.getByRole('button', { name: 'Subir golpes' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('E(4,8)');
     await expect.poll(() => page.url()).toContain('k=4');

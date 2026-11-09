@@ -407,7 +407,7 @@ export function chordVariations(name: string, key: Key): VariationGroup[] {
 // ---- Transformaciones de toda la progresión ----
 
 /** Escribe una nota como la pide la tonalidad, y lo que queda afuera con su escritura más común. */
-function spellInKey(pitchClass: number, key: Key): string {
+export function spellInKey(pitchClass: number, key: Key): string {
   const distance = (pitchClass - key.tonic + 12) % 12;
   const degree = (MODES[key.mode].steps as readonly number[]).indexOf(distance);
   if (degree >= 0) {

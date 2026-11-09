@@ -1,5 +1,6 @@
 // De qué sortea cada módulo según el nivel de riesgo.
 import type { ModeId } from '~/core/harmony';
+import type { MelodyKind } from '~/core/melodyRules';
 import type { DroneConfig } from '~/core/drone';
 import { drumConfig, type Meter, type RhythmConfig } from '~/core/rhythm';
 import type { Risk } from '~/core/roll';
@@ -15,6 +16,16 @@ import {
 export interface Constraint {
   label: string;
   rule: string;
+}
+
+/** Una restricción de melodía, con el nombre que usa el generador de ejemplos. */
+export interface MelodyConstraint extends Constraint {
+  kind: MelodyKind;
+}
+
+/** Una restricción de letra. Si pide un largo de verso, lo dice en sílabas. */
+export interface LyricConstraint extends Constraint {
+  syllables?: number;
 }
 
 export interface FormEntry extends Constraint {
@@ -119,90 +130,124 @@ export const MODE_POOL: Record<Risk, ModeId[]> = {
   2: ['lydian', 'dorian', 'phrygian', 'aeolian'],
 };
 
-export const MELODY_POOL: Record<Risk, Constraint[]> = {
+export const MELODY_POOL: Record<Risk, MelodyConstraint[]> = {
   0: [
     {
+      kind: 'quinta',
       label: 'Registro de 5 notas, pasos cortos',
       rule: 'Rango de quinta y solo grados vecinos: la línea casi no se mueve.',
     },
-    { label: 'Una nota por compás', rule: 'Densidad mínima: el silencio pasa a ser parte de la melodía.' },
     {
+      kind: 'una-por-compas',
+      label: 'Una nota por compás',
+      rule: 'Densidad mínima: el silencio pasa a ser parte de la melodía.',
+    },
+    {
+      kind: 'tonica-tercera',
       label: 'Arranca en la tónica y no sube de la 3.ª',
       rule: 'Registro grave y estrecho, al borde del recitado.',
     },
     {
+      kind: 'frases-de-dos',
       label: 'Frases de 2 compases, una por verso',
       rule: 'Fraseo corto y parejo: entra rápido y deja lugar.',
     },
     {
+      kind: 'repetida-y-salto',
       label: 'Una nota repetida y un salto final',
       rule: 'Melodía casi hablada: la energía queda en el ritmo.',
     },
-    { label: 'Arranca antes del tiempo 1', rule: 'Anacrusa: la frase empuja hacia el tiempo fuerte.' },
     {
+      kind: 'anacrusa',
+      label: 'Arranca antes del tiempo 1',
+      rule: 'Anacrusa: la frase empuja hacia el tiempo fuerte.',
+    },
+    {
+      kind: 'secuencia',
       label: 'Repetí cada frase, una vez más alta',
       rule: 'Secuencia: la misma idea transportada sube la temperatura.',
     },
   ],
   1: [
     {
+      kind: 'novena-grave',
       label: 'Registro grave, arranca en la 9.ª',
       rule: 'La 9.ª es una tensión: la línea empieza suspendida sobre el acorde.',
     },
     {
+      kind: 'ola-por-terceras',
       label: 'Contorno en ola, sin saltos de más de una 3.ª',
       rule: 'Contorno amplio con pasos chicos: llega lejos sin sobresaltos.',
     },
     {
+      kind: 'fuera-del-acorde',
       label: 'Solo notas que el acorde no tiene',
       rule: 'Melodía de tensiones: nunca reposa sobre una nota del acorde.',
     },
     {
+      kind: 'contratiempo',
       label: 'Todas las frases empiezan a contratiempo',
       rule: 'Síncopa constante: el acento nunca coincide con el pulso.',
     },
     {
+      kind: 'sin-saltos-abajo',
       label: 'Prohibidos los saltos hacia abajo',
       rule: 'Contorno ascendente: la tensión sube sin soltarse.',
     },
-    { label: 'Nota tabú: la 3.ª', rule: 'Sin la 3.ª en la voz, la línea no define si es mayor o menor.' },
     {
+      kind: 'sin-tercera',
+      label: 'Nota tabú: la 3.ª',
+      rule: 'Sin la 3.ª en la voz, la línea no define si es mayor o menor.',
+    },
+    {
+      kind: 'motivo-desplazado',
       label: 'Motivo de 4 notas, desplazado un tiempo',
       rule: 'Desplazamiento rítmico: lo mismo suena distinto sobre otro pulso.',
     },
   ],
   2: [
     {
+      kind: 'semitono',
       label: 'Dos notas a un semitono, y nada más',
       rule: 'Melodía de un solo intervalo: toda la variación pasa al ritmo.',
     },
-    { label: 'Prohibida la tónica', rule: 'Una nota tabú: la línea rodea el centro tonal sin tocarlo.' },
     {
+      kind: 'sin-tonica',
+      label: 'Prohibida la tónica',
+      rule: 'Una nota tabú: la línea rodea el centro tonal sin tocarlo.',
+    },
+    {
+      kind: 'retrogradacion',
       label: 'Motivo de 3 notas, retrogradado a la mitad',
       rule: 'Retrogradación: el motivo se repite de atrás para adelante.',
     },
     {
+      kind: 'inversion',
       label: 'Motivo de 3 notas, invertido cada vuelta',
       rule: 'Inversión: los intervalos se repiten en sentido contrario.',
     },
     {
+      kind: 'tritonos-y-semitonos',
       label: 'Solo tritonos y semitonos',
       rule: 'Intervalos prohibidos al revés: solo quedan los más tensos.',
     },
     {
+      kind: 'titulo',
       label: 'Convertí el título en notas',
       rule: 'Notas desde texto, como B-A-C-H: las letras dictan la altura.',
     },
     {
+      kind: 'sin-quinta',
       label: 'Prohibida la 5.ª justa',
       rule: 'Intervalo prohibido: desaparece el salto más estable de todos.',
     },
   ],
 };
 
-export const LYRIC_POOL: Record<Risk, Constraint[]> = {
+export const LYRIC_POOL: Record<Risk, LyricConstraint[]> = {
   0: [
     {
+      syllables: 8,
       label: 'Octosílabos, rima ABAB',
       rule: 'Rima cruzada: cada final queda abierto hasta dos versos después.',
     },
@@ -211,10 +256,15 @@ export const LYRIC_POOL: Record<Risk, Constraint[]> = {
   ],
   1: [
     {
+      syllables: 11,
       label: 'Versos largos, de 11 sílabas',
       rule: 'Endecasílabo: el verso largo baja la densidad de cada frase.',
     },
-    { label: 'Versos de 6 sílabas', rule: 'Verso corto: cada frase entra y sale en un golpe de voz.' },
+    {
+      syllables: 6,
+      label: 'Versos de 6 sílabas',
+      rule: 'Verso corto: cada frase entra y sale en un golpe de voz.',
+    },
     { label: 'Solo segunda persona', rule: 'Hablarle a alguien: la letra pasa a ser un reclamo.' },
     {
       label: 'Solo verbos de movimiento',
@@ -229,7 +279,7 @@ export const LYRIC_POOL: Record<Risk, Constraint[]> = {
     },
     {
       label: 'Una sola vocal en todo un verso',
-      rule: 'Lipograma: la restricción obliga a buscar palabras que nunca usarías.',
+      rule: 'Univocalismo: la restricción obliga a buscar palabras que nunca usarías.',
     },
     {
       label: 'Un color distinto por estrofa',

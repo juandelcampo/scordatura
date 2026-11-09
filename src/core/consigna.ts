@@ -9,6 +9,7 @@ import {
   droneFromParams,
   droneToParams,
   followKey,
+  fitToHarmony,
   followsTonic,
   matchMode,
   type DroneConfig,
@@ -24,6 +25,7 @@ import {
   rollDrone,
   rollForm,
   rollHarmony,
+  rollHarmonyWith,
   rollLyric,
   rollMelody,
   rollRhythm,
@@ -49,7 +51,8 @@ export type RowId = (typeof ROWS)[number]['id'];
 export interface RowOverrides {
   afinacion: { notes: string[]; name?: string; href?: string };
   ritmo: RhythmConfig;
-  armonia: { chords: string[]; tonic?: number; mode?: ModeId; beats?: number[] };
+  /** La regla, si la armonía salió de un sorteo con acordes trabados. */
+  armonia: { chords: string[]; tonic?: number; mode?: ModeId; beats?: number[]; rule?: string };
   melodia: { label: string; rule: string; notes?: Note[] };
   letra: { label: string; rule: string };
   /** La regla y los nombres viajan con la forma; si se edita a mano, la regla se describe sola. */
@@ -121,6 +124,41 @@ export function toggleLock(consigna: Consigna, index: number): Consigna {
 
 export const rowIndex = (id: RowId) => ROWS.findIndex((row) => row.id === id);
 
+/**
+ * Vuelve a sortear la armonía en su misma tonalidad, sin tocar los acordes trabados. Lo que sale
+ * queda en `target` (por defecto, la misma consigna): así "Nueva consigna" sortea el resto y
+ * respeta los acordes que elegiste.
+ */
+export function rerollHarmonyKeeping(
+  source: Consigna,
+  locks: readonly boolean[],
+  target: Consigna = source,
+  seed: () => number = randomSeed,
+): Consigna {
+  const index = rowIndex('armonia');
+  const current = harmonyOf(source);
+  const key = harmonyKey(current);
+  const rowSeed = seed() >>> 0;
+  const rolled = rollHarmonyWith(
+    { risk: target.risk, rng: createRng(rowSeed) },
+    { length: current.chords.length, tonic: key.tonic, mode: key.mode },
+  );
+  const chords = rolled.value.chords.map((name, i) => (locks[i] ? current.chords[i]! : name));
+  const value: RowOverrides['armonia'] = {
+    chords,
+    tonic: key.tonic,
+    mode: key.mode,
+    ...(current.beats ? { beats: current.beats } : {}),
+    rule: `${rolled.rule} Los trabados quedan como estaban, y pueden salirse de esa regla.`,
+  };
+  return {
+    ...target,
+    rows: target.rows.map((row, i) =>
+      i === index ? { seed: rowSeed, risk: target.risk, locked: false, override: value } : row,
+    ),
+  };
+}
+
 /** Lo elegido en una herramienta entra a su fila y queda trabado, para que un sorteo no lo pise. */
 export function applyOverride<K extends RowId>(consigna: Consigna, id: K, value: RowOverrides[K]): Consigna {
   const index = rowIndex(id);
@@ -161,7 +199,7 @@ function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
       return {
         value,
         label: value.chords.join(' – '),
-        rule: '',
+        rule: value.rule ?? '',
         href: harmonyHref(value.chords, value.beats),
       };
     }
@@ -216,25 +254,37 @@ export function harmonyKey(value: { chords: string[]; tonic?: number; mode?: Mod
   };
 }
 
-export function consignaKey(consigna: Consigna): HarmonyKey {
+function harmonyOf(consigna: Consigna): RowOverrides['armonia'] {
   const index = rowIndex('armonia');
-  return harmonyKey(resolveRow(index, consigna.rows[index]!).value as RowOverrides['armonia']);
+  return resolveRow(index, consigna.rows[index]!).value as RowOverrides['armonia'];
 }
 
+export function consignaKey(consigna: Consigna): HarmonyKey {
+  return harmonyKey(harmonyOf(consigna));
+}
+
+/** Los acordes de la consigna, para las herramientas que los leen. */
+export const consignaChords = (consigna: Consigna): string[] => harmonyOf(consigna).chords;
+
 /** El drone de la consigna, ya parado sobre la tónica de la armonía. */
-function droneRow(consigna: Consigna, key = consignaKey(consigna)): Rolled {
+function droneRow(consigna: Consigna, harmony = harmonyOf(consigna)): Rolled {
+  const key = harmonyKey(harmony);
+  const { chords } = harmony;
   const index = rowIndex('drone');
   const row = consigna.rows[index]!;
   const rolled = resolveRow(index, row);
   const config = rolled.value as DroneConfig;
   if (!followsTonic(config)) return rolled;
-  // Lo sorteado también toma la tercera del modo; lo elegido a mano, solo la tónica.
-  const value = row.override ? followKey(config, key) : matchMode(followKey(config, key), key.mode);
+  // Lo sorteado también toma la tercera del modo, y deja su color si choca con un acorde;
+  // lo elegido a mano solo sigue la tónica.
+  const matched = row.override ? followKey(config, key) : matchMode(followKey(config, key), key.mode);
+  const value = row.override ? matched : fitToHarmony(matched, key, chords);
+  const fitted = value.stack !== matched.stack;
   const { label, rule } = describeDrone(value);
   return {
     value,
     label,
-    rule: `${rule} Sigue la tónica de la armonía.`,
+    rule: `${rule} Sigue la tónica de la armonía${fitted ? ', sin un color que choque con sus acordes' : ''}.`,
     href: `/drone?${droneToParams(value)}`,
   };
 }
@@ -242,8 +292,7 @@ function droneRow(consigna: Consigna, key = consignaKey(consigna)): Rolled {
 /** Todas las filas resueltas: cada una sale de su semilla, y el drone además sigue a la armonía. */
 export function resolveRows(consigna: Consigna): Rolled[] {
   const rows = consigna.rows.map((row, index) => resolveRow(index, row));
-  const key = harmonyKey(rows[rowIndex('armonia')]!.value as RowOverrides['armonia']);
-  rows[rowIndex('drone')] = droneRow(consigna, key);
+  rows[rowIndex('drone')] = droneRow(consigna, rows[rowIndex('armonia')]!.value as RowOverrides['armonia']);
   return rows;
 }
 
@@ -281,12 +330,15 @@ function sanitizeOverride(id: RowId, value: unknown): RowOverrides[RowId] | null
         typeof raw.tonic === 'number' && Number.isInteger(raw.tonic) && raw.tonic >= 0 && raw.tonic < 12
           ? raw.tonic
           : undefined;
-      const mode = typeof raw.mode === 'string' && Object.hasOwn(MODES, raw.mode) ? (raw.mode as ModeId) : undefined;
+      const mode =
+        typeof raw.mode === 'string' && Object.hasOwn(MODES, raw.mode) ? (raw.mode as ModeId) : undefined;
+      const rule = text('rule');
       return {
         chords,
         ...(tonic === undefined ? {} : { tonic }),
         ...(mode === undefined ? {} : { mode }),
         ...(isChordBeats(raw.beats, chords.length) ? { beats: raw.beats } : {}),
+        ...(rule ? { rule } : {}),
       };
     }
     case 'melodia': {

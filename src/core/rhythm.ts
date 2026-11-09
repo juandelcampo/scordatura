@@ -260,7 +260,7 @@ export function describeRhythm(config: RhythmConfig): { name: string; label: str
       return {
         name: `E(${config.pulses},${config.steps})`,
         label: `E(${config.pulses},${config.steps}) ${pattern}, ${tempo}`,
-        rule: `Ritmo euclidiano: ${config.pulses} golpes en ${config.steps} pulsos lo más parejo posible${known ? `; es una rotación de ${known}` : ''}.`,
+        rule: `Ritmo euclidiano: ${config.pulses} golpes en ${config.steps} pulsos lo más parejo posible${known ? `; es una rotación ${known.startsWith('el ') ? `del ${known.slice(3)}` : `de ${known}`}` : ''}.`,
       };
     }
     case 'poly': {

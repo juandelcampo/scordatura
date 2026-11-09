@@ -6,6 +6,7 @@ import {
   encodeConsigna,
   newConsigna,
   rerollAll,
+  rerollHarmonyKeeping,
   rerollRow,
   resolveRows,
   rowIndex,
@@ -14,13 +15,16 @@ import {
   type RowId,
   type RowOverrides,
 } from '~/core/consigna';
-import { degreeOf } from '~/core/chords';
+import { DEFAULT_CHORD_BEATS, degreeOf } from '~/core/chords';
 import type { DroneConfig } from '~/core/drone';
+import type { ModeId } from '~/core/harmony';
+import type { Note } from '~/core/melody';
+import type { MelodyKind } from '~/core/melodyRules';
 import { describeRhythm, type RhythmConfig } from '~/core/rhythm';
 import { createRng, randomSeed } from '~/core/rng';
 import { RISK_NAMES } from '~/core/roll';
 import { rollHarmonyWith, rollRhythm } from '~/core/rollers';
-import { keyOfProgression, transposeTo } from '~/core/variations';
+import { keyOfProgression, translateChord, transposeTo } from '~/core/variations';
 import { publishToConsigna, useConsigna, useForm } from '~/shared/consigna';
 import { useProject } from '~/shared/project';
 import { RiskPicker } from '~/shared/RiskPicker';
@@ -141,7 +145,8 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
   const tuningNotes = valueOf<{ notes: string[] }>('afinacion').notes;
   const base = valueOf<RowOverrides['armonia']>('armonia');
   const baseRhythm = valueOf<RhythmConfig>('ritmo');
-  const melody = valueOf<RowOverrides['melodia'] | null>('melodia');
+  const melody = valueOf<{ kind?: MelodyKind; notes?: Note[] } | null>('melodia');
+  const lyricTarget = valueOf<{ syllables?: number } | null>('letra')?.syllables;
   const baseKey = keyOfProgression(base.chords, base.tonic, base.mode);
 
   // Tocar un bloque de la forma entra a esa sección: ritmo y armonía muestran lo suyo, y cambiarlos
@@ -187,6 +192,52 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     });
   };
 
+  /** Otro modo con la misma tónica: cada grado pasa a ser el de ese modo, y los prestados quedan. */
+  const setMode = (mode: ModeId) => {
+    if (mode === baseKey.mode) return;
+    publishToConsigna('armonia', {
+      chords: base.chords.map((name) => translateChord(name, baseKey, mode)),
+      tonic: baseKey.tonic,
+      mode,
+      ...(base.beats ? { beats: base.beats } : {}),
+    });
+  };
+
+  /** Un grado que había quedado afuera entra al final de la progresión. */
+  const addChord = (name: string) => {
+    if (letter && ownChords) {
+      updateSection(letter, {
+        chords: [...ownChords, name],
+        ...(section?.chordBeats ? { chordBeats: [...section.chordBeats, DEFAULT_CHORD_BEATS] } : {}),
+      });
+      return;
+    }
+    publishToConsigna('armonia', {
+      chords: [...base.chords, name],
+      tonic: baseKey.tonic,
+      mode: baseKey.mode,
+      ...(base.beats ? { beats: [...base.beats, DEFAULT_CHORD_BEATS] } : {}),
+    });
+  };
+
+  // Acordes trabados uno por uno: "Cambiar" y "Nueva consigna" sortean los demás en el mismo tono.
+  const [chordLocks, setChordLocks] = useState<boolean[]>([]);
+  const locks = base.chords.map((_, index) => Boolean(chordLocks[index]));
+  const someChordLocked = locks.some(Boolean);
+  const toggleChordLock = (index: number) =>
+    setChordLocks(base.chords.map((_, i) => (i === index ? !locks[i] : locks[i]!)));
+  const rollAll = () => {
+    const next = rerollAll(consigna, risk);
+    const harmonyLocked = consigna.rows[rowIndex('armonia')]!.locked;
+    change(someChordLocked && !harmonyLocked ? rerollHarmonyKeeping(consigna, locks, next) : next);
+  };
+
+  /** El tempo es de toda la canción; lo demás del ritmo, de quien lo tenga: la sección o la consigna. */
+  const setRhythm = (next: RhythmConfig) => {
+    if (letter && ownRhythm) updateSection(letter, { rhythm: next });
+    else publishToConsigna('ritmo', next);
+  };
+
   /** Lo de una sección sale en el tono y el tempo de la consigna, para que siga siendo la misma canción. */
   const rollForSection = (id: 'ritmo' | 'armonia') => {
     if (!letter) return;
@@ -211,7 +262,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
   const mini = (id: RowId, index: number): ReactNode => {
     switch (id) {
       case 'ritmo':
-        return <MiniRhythm config={rhythm} />;
+        return <MiniRhythm config={rhythm} onChange={setRhythm} />;
       case 'armonia':
         return (
           <MiniHarmony
@@ -219,22 +270,32 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
             harmonyKey={harmonyKey}
             tuningNotes={tuningNotes}
             onTonic={setTonic}
+            onAdd={addChord}
+            {...(ownChords ? {} : { onMode: setMode })}
+            {...(letter ? {} : { locks, onLock: toggleChordLock })}
           />
         );
       case 'melodia':
         return (
           <MiniMelody
             seed={consigna.rows[index]!.seed}
-            chord={harmony.chords[0]}
+            kind={melody?.kind ?? null}
+            harmonyKey={harmonyKey}
+            chords={harmony.chords}
             chosen={melody?.notes ?? null}
           />
         );
       case 'letra':
-        return <MiniLyric />;
+        return <MiniLyric {...(lyricTarget ? { syllables: lyricTarget } : {})} />;
       case 'forma':
         return <MiniForm selected={focus} onSelect={chooseBlock} />;
       case 'drone':
-        return <MiniDrone config={valueOf<DroneConfig>('drone')} />;
+        return (
+          <MiniDrone
+            config={valueOf<DroneConfig>('drone')}
+            onChange={(next) => publishToConsigna('drone', next)}
+          />
+        );
       default:
         return null;
     }
@@ -298,7 +359,13 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
           <Button
             variant="mini"
             ariaLabel={band ? `Sacar otra ${row.name.toLowerCase()}` : `Cambiar ${row.name}`}
-            onClick={() => change(rerollRow(consigna, index))}
+            onClick={() =>
+              change(
+                row.id === 'armonia' && someChordLocked
+                  ? rerollHarmonyKeeping(consigna, locks)
+                  : rerollRow(consigna, index),
+              )
+            }
           >
             {band ? 'Sacar otra' : 'Cambiar'}
           </Button>
@@ -443,13 +510,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         <Button onClick={undo} id="undo" disabled={!canUndo} ariaLabel="Volver a la consigna anterior">
           ↩ Volver
         </Button>
-        <Button
-          variant="primary"
-          full
-          onClick={() => change(rerollAll(consigna, risk))}
-          id="roll"
-          disabled={allLocked}
-        >
+        <Button variant="primary" full onClick={rollAll} id="roll" disabled={allLocked}>
           {allLocked ? 'Todo trabado' : 'Nueva consigna'}
         </Button>
         <Button onClick={redo} id="redo" disabled={!canRedo} ariaLabel="Rehacer">

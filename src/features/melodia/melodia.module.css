@@ -43,6 +43,10 @@
   gap: 6px;
   margin: 10px 0;
 }
+/* Los acordes van como se escriben: en mayúsculas, C#m se leería C#M, que es otro acorde. */
+.chips button {
+  text-transform: none;
+}
 .draw {
   display: block;
   width: 100%;

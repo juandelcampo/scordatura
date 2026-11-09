@@ -20,3 +20,22 @@
   color: var(--muted);
   font-size: 13px;
 }
+/* Con acordes, cada compás lleva su línea y su nombre arriba; las notas quedan debajo. */
+.roll[data-bars='true'] {
+  background: none;
+}
+.bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 1px 4px;
+  border-left: 1px solid var(--muted);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.bar:first-child {
+  border-left: 0;
+}

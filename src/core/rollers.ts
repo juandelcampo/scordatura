@@ -17,6 +17,7 @@ import { rollProgression, type ModeId, type RollOptions } from './harmony';
 import { midiToNote, noteLabel, noteToMidi } from './notes';
 import { describeDrone, droneToParams, type DroneConfig } from './drone';
 import { describeRhythm, rhythmToParams, type RhythmConfig } from './rhythm';
+import type { MelodyKind } from './melodyRules';
 import type { Rng } from './rng';
 import type { Rolled, RollInput, Roller } from './roll';
 import { changeSummary, openChordName } from './tuning';
@@ -83,17 +84,23 @@ export function rollHarmonyWith(
 
 export const rollHarmony: Roller<HarmonyRoll> = (input) => rollHarmonyWith(input);
 
-export const rollMelody: Roller<null> = ({ risk, rng }) => {
-  const { label, rule } = rng.pick(MELODY_POOL[risk]);
-  return { value: null, label, rule, href: '/melodia' };
+/** Qué regla salió, para que la consigna pueda armar un ejemplo que la cumpla. */
+export type MelodyRoll = { kind: MelodyKind };
+
+export const rollMelody: Roller<MelodyRoll> = ({ risk, rng }) => {
+  const { label, rule, kind } = rng.pick(MELODY_POOL[risk]);
+  return { value: { kind }, label, rule, href: '/melodia' };
 };
 
-export const rollLyric: Roller<null> = ({ risk, rng }) => {
+/** Si la letra pide un largo de verso, cuántas sílabas: el contador lo compara. */
+export type LyricRoll = { syllables?: number };
+
+export const rollLyric: Roller<LyricRoll> = ({ risk, rng }) => {
   const constraint = rng.pick(LYRIC_POOL[risk]);
   const object = rng.pick(IMAGE_POOL.objects);
   const place = rng.pick(IMAGE_POOL.places);
   return {
-    value: null,
+    value: constraint.syllables ? { syllables: constraint.syllables } : {},
     label: `${constraint.label}. Imagen: ${object} en ${place}`,
     rule: `${constraint.rule} La imagen concreta evita las palabras abstractas de siempre.`,
     href: '/letras',

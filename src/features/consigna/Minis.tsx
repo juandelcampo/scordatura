@@ -6,14 +6,16 @@ import { playMelody, pluckString, stopInstrument, strum } from '~/audio/instrume
 import { metronome } from '~/audio/metronome';
 import { song } from '~/audio/song';
 import { canonical } from '~/core/canonical';
-import { closeVoicing, parseChord, voicingFor } from '~/core/chords';
-import { MODES, spell, tonicSpelling } from '~/core/harmony';
-import type { DroneConfig } from '~/core/drone';
+import { closeVoicing, degreeOf, parseChord, voicingFor } from '~/core/chords';
+import { MODES, spell, tonicSpelling, type ModeId } from '~/core/harmony';
+import { STACKS, TIMBRES, type DroneConfig, type StackId, type TimbreId } from '~/core/drone';
 import { exampleMelody, type Note } from '~/core/melody';
+import { BAR, melodyExample, type MelodyKind } from '~/core/melodyRules';
 import { noteLabel, noteToMidi, splitNote } from '~/core/notes';
-import type { RhythmConfig } from '~/core/rhythm';
+import { clampBpm, type RhythmConfig } from '~/core/rhythm';
 import { createRng } from '~/core/rng';
-import type { Key } from '~/core/variations';
+import { diatonicChords, MAX_CHORDS, spellInKey, type Key } from '~/core/variations';
+import { DEFAULT_BARS, MAX_BARS } from '~/core/song';
 import { metricCount, wordsIn } from '~/core/spanish';
 import { useForm } from '~/shared/consigna';
 import { FormLegend, FormStrip, useSongPlayer } from '~/shared/FormStrip';
@@ -205,12 +207,82 @@ export function MiniTuning({
 
 const sameConfig = (a: unknown, b: unknown) => canonical(a) === canonical(b);
 
-export function MiniRhythm({ config }: { config: RhythmConfig }) {
+/** Un valor con − y + a los costados, del tamaño de los botones chicos de la tarjeta. */
+function Nudge({
+  label,
+  value,
+  onDown,
+  onUp,
+}: {
+  label: string;
+  value: ReactNode;
+  onDown: () => void;
+  onUp: () => void;
+}) {
+  return (
+    <div className={styles.nudge} role="group" aria-label={label}>
+      <button type="button" aria-label={`Bajar ${label}`} onClick={onDown}>
+        −
+      </button>
+      <output>{value}</output>
+      <button type="button" aria-label={`Subir ${label}`} onClick={onUp}>
+        +
+      </button>
+    </div>
+  );
+}
+
+const TEMPO_STEP = 5;
+
+/** De a cinco, y redondeando: de 52 se baja a 50, no a 47. */
+const stepTempo = (bpm: number, direction: 1 | -1) => {
+  const rounded = Math.round(bpm / TEMPO_STEP) * TEMPO_STEP;
+  const next =
+    rounded === bpm || Math.sign(rounded - bpm) !== direction ? rounded + direction * TEMPO_STEP : rounded;
+  return clampBpm(next);
+};
+
+export function MiniRhythm({
+  config,
+  onChange,
+}: {
+  config: RhythmConfig;
+  onChange: (next: RhythmConfig) => void;
+}) {
   const state = useSyncExternalStore(metronome.subscribe, metronome.getState, metronome.getState);
   const mine = state.running && sameConfig(state.config, config);
+  // Si está sonando, el cambio se oye enseguida.
+  const apply = (next: RhythmConfig) => {
+    if (mine) metronome.setConfig(next);
+    onChange(next);
+  };
   return (
     <div className={styles.mini}>
       <RhythmGrid config={config} compact />
+      {config.mode === 'euclid' && (
+        <div className={styles.controls} data-print="hide">
+          <Nudge
+            label="los golpes"
+            value={`${config.pulses} golpes`}
+            onDown={() => apply({ ...config, pulses: Math.max(1, config.pulses - 1) })}
+            onUp={() => apply({ ...config, pulses: Math.min(config.steps, config.pulses + 1) })}
+          />
+          <Nudge
+            label="los pulsos"
+            value={`en ${config.steps}`}
+            onDown={() => {
+              const steps = Math.max(2, config.steps - 1);
+              apply({
+                ...config,
+                steps,
+                pulses: Math.min(config.pulses, steps),
+                rotation: config.rotation % steps,
+              });
+            }}
+            onUp={() => apply({ ...config, steps: Math.min(16, config.steps + 1) })}
+          />
+        </div>
+      )}
       <Foot>
         <Button
           variant="mini"
@@ -226,6 +298,13 @@ export function MiniRhythm({ config }: { config: RhythmConfig }) {
         >
           {mine ? '■ Parar' : '▶ Oír'}
         </Button>
+        {/* El tempo va al lado de "Oír": es lo que se toca mientras suena. */}
+        <Nudge
+          label="el tempo"
+          value={`${config.bpm} ppm`}
+          onDown={() => apply({ ...config, bpm: stepTempo(config.bpm, -1) })}
+          onUp={() => apply({ ...config, bpm: stepTempo(config.bpm, 1) })}
+        />
       </Foot>
     </div>
   );
@@ -233,33 +312,86 @@ export function MiniRhythm({ config }: { config: RhythmConfig }) {
 
 const TONICS = Array.from({ length: 12 }, (_, tonic) => tonic);
 
+const LockIcon = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <rect x="3" y="7" width="10" height="8" fill="currentColor" />
+    <path
+      d={open ? 'M5 7V4.5a3 3 0 0 1 5.8-1' : 'M5 7V4.5a3 3 0 0 1 6 0V7'}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
+/** Si el acorde ya está en la progresión: misma raíz y misma tercera, aunque tenga séptima. */
+function sameTriad(a: string, b: string): boolean {
+  const x = parseChord(a);
+  const y = parseChord(b);
+  if (!x || !y || x.root !== y.root) return false;
+  const third = (chord: typeof x) => (chord.intervals.includes(3) ? 3 : chord.intervals.includes(4) ? 4 : 0);
+  return third(x) === third(y);
+}
+
 export function MiniHarmony({
   chords,
   harmonyKey,
   tuningNotes,
   onTonic,
+  onMode,
+  locks,
+  onLock,
+  onAdd,
 }: {
   chords: string[];
   harmonyKey: Key;
   tuningNotes: string[];
   onTonic: (tonic: number) => void;
+  /** Sin esto, el modo se muestra pero no se cambia (en una sección con acordes propios). */
+  onMode?: (mode: ModeId) => void;
+  locks?: readonly boolean[];
+  onLock?: (index: number) => void;
+  onAdd?: (chord: string) => void;
 }) {
   const a4 = useSettings((s) => s.a4);
   const notation = useSettings((s) => s.notation);
   const { playing, play, stop } = usePlayback();
-  const shapes = chords.map((name) => {
+  const shapeOf = (name: string) => {
     const parsed = parseChord(name);
     const voicing = parsed ? voicingFor(tuningNotes, name) : null;
     return { name, voicing, midis: voicing?.midis ?? (parsed ? closeVoicing(parsed) : []) };
-  });
+  };
+  const shapes = chords.map(shapeOf);
+  // Los grados de la tonalidad que la progresión no usa: para probarlos y sumarlos.
+  const outside = diatonicChords(harmonyKey)
+    .map((chord) => chord.name)
+    .filter((name) => !chords.some((own) => sameTriad(own, name)));
   // La octava no se muestra: noteLabel solo la necesita para leer la nota.
   const tonicName = (tonic: number) => noteLabel(`${spell(tonicSpelling(tonic))}4`, notation);
+  const frets = (shape: ReturnType<typeof shapeOf>) =>
+    shape.voicing ? shape.voicing.frets.map((fret) => fret ?? 'x').join(' ') : 'sin digitación';
   return (
     <div className={styles.mini}>
       <div className={styles.tonics}>
         <span className={styles.tonicLabel}>
           Tónica
-          <small>{MODES[harmonyKey.mode].name}</small>
+          {onMode ? (
+            <select
+              className={styles.modeSelect}
+              value={harmonyKey.mode}
+              aria-label="Modo"
+              data-testid="mini-mode"
+              onChange={(event) => onMode(event.target.value as ModeId)}
+            >
+              {(Object.keys(MODES) as ModeId[]).map((id) => (
+                <option key={id} value={id}>
+                  {MODES[id].name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <small>{MODES[harmonyKey.mode].name}</small>
+          )}
         </span>
         <div className={styles.tonicStrip} role="group" aria-label="Tónica">
           {TONICS.map((tonic) => (
@@ -275,6 +407,40 @@ export function MiniHarmony({
           ))}
         </div>
       </div>
+      {outside.length > 0 && (
+        <div className={styles.outside} data-print="hide">
+          <span className={styles.tonicLabel} title="Acordes de la tonalidad que la progresión no usa">
+            Afuera
+          </span>
+          <div className={styles.spares} data-testid="mini-outside">
+            {outside.map((name) => {
+              const shape = shapeOf(name);
+              return (
+                <div key={name} className={styles.spare}>
+                  <button
+                    type="button"
+                    aria-label={`Oír ${name}, que no está en la progresión`}
+                    title={frets(shape)}
+                    onClick={() => play(1.5, () => strum(shape.midis, a4))}
+                  >
+                    <small>{degreeOf(name, harmonyKey.tonic)}</small>
+                    {name}
+                  </button>
+                  {onAdd && chords.length < MAX_CHORDS && (
+                    <button
+                      type="button"
+                      aria-label={`Sumar ${name} a la progresión`}
+                      onClick={() => onAdd(name)}
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <Foot>
         <Button
           variant="mini"
@@ -294,17 +460,33 @@ export function MiniHarmony({
         </Button>
         <div className={styles.chords} title="Los acordes en esta tónica, con los trastes de esta afinación">
           {shapes.map((shape, index) => (
-            <button
+            <div
               key={`${shape.name}-${index}`}
-              type="button"
-              aria-label={`Oír ${shape.name}`}
-              onClick={() => play(1.5, () => strum(shape.midis, a4))}
+              className={styles.chord}
+              data-locked={onLock ? Boolean(locks?.[index]) : undefined}
             >
-              <strong data-testid="mini-chord-name">{shape.name}</strong>
-              <small data-testid="mini-frets">
-                {shape.voicing ? shape.voicing.frets.map((fret) => fret ?? 'x').join(' ') : 'sin digitación'}
-              </small>
-            </button>
+              <button
+                type="button"
+                className={styles.chordPlay}
+                aria-label={`Oír ${shape.name}`}
+                onClick={() => play(1.5, () => strum(shape.midis, a4))}
+              >
+                <strong data-testid="mini-chord-name">{shape.name}</strong>
+                <small data-testid="mini-frets">{frets(shape)}</small>
+              </button>
+              {onLock && (
+                <button
+                  type="button"
+                  className={styles.chordLock}
+                  aria-pressed={Boolean(locks?.[index])}
+                  aria-label={`${locks?.[index] ? 'Destrabar' : 'Trabar'} ${shape.name}`}
+                  title={locks?.[index] ? 'Trabado: "Cambiar" no lo toca' : 'Trabar este acorde'}
+                  onClick={() => onLock(index)}
+                >
+                  <LockIcon open={!locks?.[index]} />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </Foot>
@@ -312,42 +494,90 @@ export function MiniHarmony({
   );
 }
 
+/** Melodía y acordes a la vez: los acordes en las cuerdas graves, la línea en las agudas. */
+const EXAMPLE_BPM = 96;
+
+function playOverChords(notes: Note[], bars: readonly string[], a4: number): number {
+  const eighth = 60 / EXAMPLE_BPM / 2;
+  const origin = getAudio().ctx.currentTime + 0.05;
+  bars.forEach((name, bar) => {
+    const parsed = parseChord(name);
+    if (!parsed) return;
+    closeVoicing(parsed)
+      .slice(0, 4)
+      .forEach((midi, string) =>
+        pluckString(string, midi, { a4, when: origin + bar * BAR * eighth + string * 0.02, velocity: 0.45 }),
+      );
+  });
+  notes.forEach((note, index) =>
+    pluckString(4 + (index % 2), note.midi, { a4, when: origin + note.start * eighth }),
+  );
+  const end = Math.max(bars.length * BAR, ...notes.map((note) => note.start + note.dur));
+  return end * eighth + 1;
+}
+
 export function MiniMelody({
   seed,
-  chord,
+  kind,
+  harmonyKey,
+  chords,
   chosen,
 }: {
   seed: number;
-  chord: string | undefined;
+  /** La regla sorteada. Sin ella (una elegida a mano sin notas), el ejemplo es libre. */
+  kind: MelodyKind | null;
+  harmonyKey: Key;
+  chords: string[];
   chosen: Note[] | null;
 }) {
   const a4 = useSettings((s) => s.a4);
+  const notation = useSettings((s) => s.notation);
   const { playing, play, stop } = usePlayback();
-  const parsed = chord ? parseChord(chord) : null;
-  const minor = parsed?.intervals.includes(3) ?? true;
-  const notes = chosen ?? exampleMelody(createRng(seed), parsed?.root ?? 9, minor ? 'aeolian' : 'ionian');
+  const name = (pitchClass: number) => noteLabel(`${spellInKey(pitchClass, harmonyKey)}4`, notation);
+  // Es barato: se arma en cada render, con la misma semilla sale siempre igual.
+  const example = kind ? melodyExample(kind, { ...harmonyKey, chords, rng: createRng(seed), name }) : null;
+  const bars = example?.bars ?? chords.slice(0, 4);
+  const notes = chosen ?? example?.notes ?? exampleMelody(createRng(seed), harmonyKey.tonic, harmonyKey.mode);
+  const length = chosen ? undefined : (example?.length ?? undefined);
+  const caption = chosen
+    ? 'La que armaste en Melodía.'
+    : (example?.hint ?? `Una línea en ${name(harmonyKey.tonic)} ${MODES[harmonyKey.mode].name}.`);
   return (
     <div className={styles.mini}>
-      <PianoRoll notes={notes} label={chosen ? 'Tu melodía' : 'Una línea de ejemplo'} compact />
+      <PianoRoll
+        notes={notes}
+        label={chosen ? 'Tu melodía' : 'Una línea de ejemplo que cumple la regla'}
+        compact
+        length={length}
+        bars={chosen ? undefined : bars}
+      />
+      <p className={styles.noteNames} data-testid="mini-melody-notes">
+        {notes.map((note) => name(((note.midi % 12) + 12) % 12)).join(' ')}
+      </p>
       <Foot>
         <Button
           variant="mini"
-          ariaLabel={playing ? 'Parar el ejemplo' : 'Oír un ejemplo de melodía'}
-          onClick={() => (playing ? stop() : play(4, () => playMelody(notes, 100, a4)))}
+          ariaLabel={playing ? 'Parar el ejemplo' : 'Oír un ejemplo de melodía sobre los acordes'}
+          onClick={() => {
+            if (playing) {
+              stop();
+              return;
+            }
+            const seconds = playOverChords(notes, chosen ? [] : bars, a4);
+            play(seconds, () => undefined);
+          }}
         >
           {playing ? '■ Parar' : chosen ? '▶ Oír' : '▶ Ejemplo'}
         </Button>
-        <span className={styles.caption}>
-          {chosen
-            ? 'La que armaste en Melodía.'
-            : `Sobre ${chord ?? 'el primer acorde'}. La tuya va a ser otra.`}
+        <span className={styles.caption} data-testid="mini-melody-hint">
+          {caption}
         </span>
       </Foot>
     </div>
   );
 }
 
-export function MiniLyric() {
+export function MiniLyric({ syllables }: { syllables?: number }) {
   const active = useProject((s) => s.active);
   const text = useProject((s) => s.sections[s.active]?.text) ?? '';
   const updateSection = useProject((s) => s.updateSection);
@@ -355,6 +585,7 @@ export function MiniLyric() {
     .split('\n')
     .filter((line) => wordsIn(line).length > 0)
     .map((line) => metricCount(line).total);
+  const off = syllables ? counts.filter((count) => count !== syllables).length : 0;
   return (
     <div className={styles.mini}>
       <textarea
@@ -362,15 +593,41 @@ export function MiniLyric() {
         rows={2}
         value={text}
         aria-label={`Letra de la sección ${active}`}
-        placeholder={`Letra de la sección ${active}`}
+        placeholder={
+          syllables
+            ? `Letra de la sección ${active}: versos de ${syllables}`
+            : `Letra de la sección ${active}`
+        }
         data-testid="mini-lyric"
         onChange={(event) => updateSection(active, { text: event.target.value })}
       />
       <Foot>
         <span className={styles.caption} data-testid="mini-lyric-count">
-          {counts.length
-            ? `Sílabas por verso: ${counts.join(' · ')}`
-            : 'Acá se cuentan las sílabas de cada verso.'}
+          {counts.length ? (
+            <>
+              Sílabas por verso:{' '}
+              {counts.map((count, index) => (
+                <span key={index}>
+                  {index > 0 && ' · '}
+                  <span
+                    className={styles.count}
+                    data-off={syllables !== undefined && count !== syllables}
+                    title={syllables && count !== syllables ? `Pide ${syllables}` : undefined}
+                  >
+                    {count}
+                  </span>
+                </span>
+              ))}
+              {syllables !== undefined &&
+                (off
+                  ? ` · ${off === 1 ? 'uno no tiene' : `${off} no tienen`} ${syllables}`
+                  : ` · todos de ${syllables}`)}
+            </>
+          ) : syllables ? (
+            `Pide versos de ${syllables} sílabas: acá se cuentan.`
+          ) : (
+            'Acá se cuentan las sílabas de cada verso.'
+          )}
         </span>
       </Foot>
     </div>
@@ -391,6 +648,8 @@ export function MiniForm({
   const { blocks, names } = useForm();
   const player = useSongPlayer();
   const letter = selected !== null ? blocks[selected] : undefined;
+  const bars = useProject((s) => (letter ? s.sections[letter]?.bars : undefined)) ?? DEFAULT_BARS;
+  const updateSection = useProject((s) => s.updateSection);
   return (
     <div className={styles.mini}>
       <FormStrip
@@ -402,6 +661,16 @@ export function MiniForm({
         active={letter}
         onSelect={onSelect}
       />
+      {letter && (
+        <div className={styles.controls} data-print="hide">
+          <Nudge
+            label={`los compases de ${letter}`}
+            value={`${letter}: ${bars} cc`}
+            onDown={() => updateSection(letter, { bars: Math.max(1, bars - 1) })}
+            onUp={() => updateSection(letter, { bars: Math.min(MAX_BARS, bars + 1) })}
+          />
+        </div>
+      )}
       <Foot>
         <Button
           variant="mini"
@@ -425,11 +694,50 @@ export function MiniForm({
   );
 }
 
-export function MiniDrone({ config }: { config: DroneConfig }) {
+export function MiniDrone({
+  config,
+  onChange,
+}: {
+  config: DroneConfig;
+  onChange: (next: DroneConfig) => void;
+}) {
   const state = useSyncExternalStore(drone.subscribe, drone.getState, drone.getState);
   const mine = state.running && sameConfig(state.config, config);
+  const apply = (next: DroneConfig) => {
+    if (mine) drone.setConfig(next);
+    onChange(next);
+  };
   return (
     <div className={styles.mini}>
+      {!config.notes && (
+        <div className={styles.controls} data-print="hide">
+          <select
+            className={styles.pick}
+            value={config.stack}
+            aria-label="Qué se apila sobre la raíz"
+            data-testid="mini-drone-stack"
+            onChange={(event) => apply({ ...config, stack: event.target.value as StackId })}
+          >
+            {(Object.keys(STACKS) as StackId[]).map((id) => (
+              <option key={id} value={id}>
+                {STACKS[id].name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.pick}
+            value={config.timbre}
+            aria-label="Timbre del drone"
+            onChange={(event) => apply({ ...config, timbre: event.target.value as TimbreId })}
+          >
+            {(Object.keys(TIMBRES) as TimbreId[]).map((id) => (
+              <option key={id} value={id}>
+                {TIMBRES[id].name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <Foot>
         <Button
           variant="mini"
