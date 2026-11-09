@@ -8,8 +8,12 @@ const ACCENTED = 'áéíóú';
 const VOWELS = 'aeiouáéíóúü';
 
 const isVowel = (char: string | undefined) => !!char && VOWELS.includes(char);
-// "tl" va junto, como se pronuncia en América: a-tlas.
-const INSEPARABLE = /^(?:[bcfgkp][lr]|[dt]r|tl|ch|ll|rr)$/;
+/** La u de "que", "qui", "gue" y "gui" no suena: es parte de la consonante. */
+const silentU = (text: string, i: number) =>
+  text[i] === 'u' && (text[i - 1] === 'q' || text[i - 1] === 'g') && 'eiéí'.includes(text[i + 1] ?? '');
+const vowelAt = (text: string, i: number) => isVowel(text[i]) && !silentU(text, i);
+// "tl" va junto, como se pronuncia en América: a-tlas. "qu" y "gu" con la u muda, también: a-quí.
+const INSEPARABLE = /^(?:[bcfgkp][lr]|[dt]r|tl|ch|ll|rr|qu|gu)$/;
 
 /** Parte una palabra en sílabas ortográficas. */
 export function syllabify(word: string): string[] {
@@ -20,19 +24,18 @@ export function syllabify(word: string): string[] {
   while (i < text.length) {
     const char = text[i]!;
     current += char;
-    if (!isVowel(char)) {
+    if (!vowelAt(text, i)) {
       i += 1;
       continue;
     }
     // Núcleo: junta vocales mientras formen diptongo o triptongo.
     let j = i + 1;
-    while (isVowel(text[j]) && !splitsVowels(text[j - 1]!, text[j]!)) {
+    while (vowelAt(text, j) && !splitsVowels(text[j - 1]!, text[j]!)) {
       current += text[j];
       j += 1;
     }
-    // "qu" y "gu" antes de e/i: la u no cuenta como vocal.
     let k = j;
-    while (k < text.length && !isVowel(text[k])) k += 1;
+    while (k < text.length && !vowelAt(text, k)) k += 1;
     const consonants = text.slice(j, k);
     if (k >= text.length) {
       current += consonants;
@@ -104,6 +107,7 @@ export interface MetricSyllable {
 export function metricSyllables(line: string): MetricSyllable[] {
   const result: MetricSyllable[] = [];
   let previousLength = 0;
+  let previousWord = '';
   for (const word of wordsIn(line)) {
     const syllables = syllabify(word);
     const stress = stressIndex(word);
@@ -111,8 +115,13 @@ export function metricSyllables(line: string): MetricSyllable[] {
     syllables.forEach((syllable, index) => {
       const stressed = !unstressed && index === stress;
       const previous = result[result.length - 1];
-      const startsWithVowel = isVowel(syllable.replace(/^h/, '')[0]);
-      const endsWithVowel = !!previous && isVowel(previous.text[previous.text.length - 1]);
+      // "y" sola es una vocal. "Hie-" y "hue-" (hierba, huella) suenan con consonante y frenan la
+      // sinalefa. Una y final (soy, muy) pasa a ser consonante de la sílaba que sigue: so-yun.
+      const lower = word.toLowerCase();
+      const startsWithVowel =
+        lower === 'y' || (isVowel(syllable.replace(/^h/, '')[0]) && !/^h[iu][aeoáéó]/.test(lower));
+      const endsWithVowel =
+        !!previous && (isVowel(previous.text[previous.text.length - 1]) || previousWord === 'y');
       // La sinalefa une el final y el principio de dos palabras. Si ambas sílabas son tónicas suele
       // leerse en hiato, salvo con monosílabos: "no hay" se dice en una sola sílaba.
       const bothStressed = !!previous?.stressed && stressed;
@@ -125,6 +134,7 @@ export function metricSyllables(line: string): MetricSyllable[] {
       }
     });
     previousLength = syllables.length;
+    previousWord = word.toLowerCase();
   }
   return result;
 }
@@ -182,11 +192,15 @@ export const consonantKey = (word: string) =>
     .replace(/z/g, 's');
 
 /** Clave de rima asonante: solo las vocales, sin las débiles de un diptongo átono. */
-export function assonantKey(word: string): string {
-  const tail = rhymeTail(word);
+export const assonantKey = (word: string) => assonantOfTail(rhymeTail(word));
+
+/**
+ * La asonancia sale de la terminación: la vocal tónica y la última. Sirve también con la clave
+ * consonante, que cambia consonantes pero deja las vocales.
+ */
+export function assonantOfTail(tail: string): string {
   const vowels = [...tail].filter((char) => 'aeiou'.includes(char));
   if (vowels.length <= 1) return vowels.join('');
-  // Solo cuentan la vocal tónica y la última.
   return `${vowels[0]}${vowels[vowels.length - 1]}`;
 }
 

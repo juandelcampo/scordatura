@@ -344,19 +344,23 @@
     grid-template-rows: minmax(0, 1fr);
   }
 }
-/* La consigna también entra entera, pero solo con pantalla de escritorio: en un celular se desplaza. */
+/* La consigna (y Letras) también entran enteras, pero solo con pantalla de escritorio: en un celular
+   se desplazan. */
 @media (min-width: 900px) and (min-height: 600px) {
-  .shell[data-fit='consigna'] {
+  .shell[data-fit='consigna'],
+  .shell[data-fit='pantalla'] {
     height: 100dvh;
     overflow: hidden;
     grid-template-rows: minmax(0, 1fr);
   }
-  .shell[data-fit='consigna'] .column {
+  .shell[data-fit='consigna'] .column,
+  .shell[data-fit='pantalla'] .column {
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
-  .shell[data-fit='consigna'] .main {
+  .shell[data-fit='consigna'] .main,
+  .shell[data-fit='pantalla'] .main {
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -367,6 +371,7 @@
 @media print {
   .shell,
   .shell[data-fit='consigna'],
+  .shell[data-fit='pantalla'],
   .shell[data-fit='true'] {
     display: block;
     height: auto;

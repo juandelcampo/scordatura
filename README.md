@@ -109,4 +109,4 @@ Es un requisito, no un detalle:
 - Muchas afinaciones por canción se transcribieron de oído. Cada tema marca su confiabilidad con `conf`, y `octaves: 'est'` indica que la fuente no daba octavas y son estimadas.
 - Lo que se sortea (`data/pools.ts`) y el mazo de cartas son un primer borrador para editar.
 - Las estructuras de `data/forms.ts` están simplificadas, y los minutos de cada sección los marca cada persona al escuchar.
-- La lista del diccionario de rimas (`public/palabras.txt`) sale del paquete [an-array-of-spanish-words](https://www.npmjs.com/package/an-array-of-spanish-words), con licencia MIT. Se regenera con `scripts/build-words.ts`.
+- La lista del diccionario de rimas (`public/palabras.txt`) sale del diccionario Hunspell de español de [RLA-ES](https://github.com/sbosio/rla-es), con licencia MPL 1.1, GPL 3 o LGPL 3, a elección; la lista derivada se distribuye bajo MPL 1.1. Trae tildes, plurales y conjugaciones, y se le suma el voseo. Viene agrupada por rima consonante. Se regenera con `node scripts/build-words.ts` (necesita el paquete `hunspell-es`).

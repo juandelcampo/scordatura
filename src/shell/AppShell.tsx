@@ -214,6 +214,8 @@ export default function AppShell() {
   // Abierta desde la consigna, la herramienta va encima de ella; si se llegó directo, es una página.
   const modal = toolFrom !== null && isToolPath(pathname);
   const onConsigna = pathname === '/' || pathname === '/consigna' || modal;
+  // Letras también entra entera en una pantalla de escritorio: cada panel se desplaza adentro.
+  const fitsScreen = pathname.startsWith('/letras');
   // Para la navegación, el modal sigue siendo la consigna.
   const navPathname = modal ? '/' : pathname;
   const songRunning = useSyncExternalStore(
@@ -264,7 +266,7 @@ export default function AppShell() {
     <div
       className={styles.shell}
       data-collapsed={collapsed}
-      data-fit={inStudio ? 'true' : onConsigna ? 'consigna' : 'false'}
+      data-fit={inStudio ? 'true' : onConsigna ? 'consigna' : fitsScreen ? 'pantalla' : 'false'}
     >
       {songRunning && <SongSync />}
       <header className={styles.topBar}>

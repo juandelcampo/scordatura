@@ -524,29 +524,50 @@ test.describe('melodía', () => {
 });
 
 test.describe('letras', () => {
-  test('cuenta sílabas, detecta la rima y marca lo que no cumple', async ({ page }) => {
+  test('cuenta sílabas y rima en el margen, y marca lo que no cumple la pauta', async ({ page }) => {
     const errors = watchErrors(page);
     await goto(page, '/letras');
+    await page.getByTestId('mold').selectOption('medida');
+    await page.getByTestId('target').fill('8');
+    await page.getByTestId('scheme').selectOption('xaxa');
     await page
       .getByTestId('lyric-text')
       .fill(
-        'En un lugar de la Mancha\nCaminante no hay camino\nesta es una línea demasiado larga para ser octosílabo\nverde que te quiero verde',
+        'En un lugar de la Mancha\nCaminante no hay camino\nesta es una línea demasiado larga para ser octosílabo\nverde que te quiero verde\n\nel barco sobre la mar',
       );
     const lines = page.getByTestId('line');
-    await expect(lines).toHaveCount(4);
+    await expect(lines).toHaveCount(5);
     await expect(lines.nth(0).getByTestId('line-count')).toHaveText('8');
     await expect(lines.nth(1).getByTestId('line-count')).toHaveText('8');
     await expect(lines.nth(0)).toHaveAttribute('data-off', 'false');
     await expect(lines.nth(2)).toHaveAttribute('data-off', 'true');
-    await expect(page.getByTestId('prosody-line')).toHaveCount(4);
+    // Camino y verde no riman: el esquema pide que rimen el 2 y el 4.
+    await expect(lines.nth(3).getByTestId('line-rhyme')).toHaveAttribute('data-bad', 'true');
+    await expect(page.getByText('Verso 4: no rima con el 2.')).toBeVisible();
+    // La línea vacía separa estrofas: dos grillas de acentos.
+    await page.getByRole('button', { name: 'Acentos', exact: true }).click();
+    await expect(page.getByTestId('prosody-stanza')).toHaveCount(2);
     expect(errors).toEqual([]);
+  });
+
+  test('toma la pauta de la consigna', async ({ page }) => {
+    await goto(page, '/letras');
+    for (let i = 0; i < 40; i++) {
+      const title = await page.getByRole('heading', { level: 1 }).textContent();
+      if (/sílabas|Octosílabos/.test(title ?? '')) break;
+      await page.locator('#roll-lyric').click();
+    }
+    const title = (await page.getByRole('heading', { level: 1 }).textContent()) ?? '';
+    test.skip(!/sílabas|Octosílabos/.test(title), 'No salió una consigna con medida');
+    await expect(page.getByTestId('mold')).toHaveValue('consigna');
   });
 
   test('avisa de la palabra prohibida', async ({ page }) => {
     await goto(page, '/letras');
     await page.getByTestId('forbidden').fill('noche');
     await page.getByTestId('lyric-text').fill('Toda la noche despierto');
-    await expect(page.getByTestId('line')).toContainText('usa la palabra prohibida');
+    await expect(page.getByTestId('line')).toHaveAttribute('data-forbidden', 'true');
+    await expect(page.getByText('Verso 1: usa la palabra prohibida.')).toBeVisible();
   });
 
   test('la letra se guarda por sección', async ({ page }) => {
@@ -560,32 +581,36 @@ test.describe('letras', () => {
     await expect(page.getByTestId('lyric-text')).toHaveValue('Letra de la sección A');
   });
 
-  test('el diccionario busca rimas y se carga recién al usarlo', async ({ page }) => {
+  test('el diccionario se carga al buscar, rima con tildes y pone la palabra en la letra', async ({
+    page,
+  }) => {
     const requested: string[] = [];
     page.on('request', (request) => {
       if (request.url().includes('palabras')) requested.push(request.url());
     });
     await goto(page, '/letras');
-    await page.getByRole('button', { name: 'Rimas' }).click();
+    const area = page.getByTestId('lyric-text');
+    await area.fill('Te lo digo de corazón');
     expect(requested).toEqual([]);
-    await page.getByTestId('rhyme-query').fill('camino');
-    await page.locator('#rhyme-search').click();
-    const results = page.getByTestId('rhyme-results').getByRole('listitem');
+    // Tocar la letra de rima del verso busca su final.
+    await page.getByTestId('line-rhyme').first().click();
+    const results = page.getByTestId('rhyme-results').getByRole('button');
     await expect(results.first()).toBeVisible({ timeout: 20000 });
-    for (const word of await results.allTextContents()) expect(word).toMatch(/[ií]no$/);
-    // Es una muestra repartida: no se queda con el principio del alfabeto.
-    const words = await results.allTextContents();
-    expect(new Set(words.map((word) => word[0])).size).toBeGreaterThan(6);
+    await expect(page.getByTestId('rhyme-query')).toHaveValue('corazón');
+    for (const word of await results.allTextContents()) expect(word).toMatch(/[oó]n$/);
 
-    await page.getByTestId('rhyme-mode').selectOption('asonante');
+    await page.getByTestId('rhyme-query').fill('canción');
     await page.locator('#rhyme-search').click();
+    await expect.poll(async () => (await results.allTextContents()).length).toBeGreaterThan(10);
+
+    await page.getByRole('button', { name: 'Asonante' }).last().click();
     await expect
-      .poll(async () => (await results.allTextContents()).some((word) => !word.endsWith('ino')), {
+      .poll(async () => (await results.allTextContents()).some((word) => !/[oó]n$/.test(word)), {
         timeout: 20000,
       })
       .toBe(true);
 
-    await page.getByTestId('rhyme-mode').selectOption('final');
+    await page.getByRole('button', { name: 'Final', exact: true }).click();
     await page.getByTestId('rhyme-query').fill('ción');
     await page.locator('#rhyme-search').click();
     await expect
@@ -593,38 +618,65 @@ test.describe('letras', () => {
         timeout: 20000,
       })
       .toBe(true);
+
+    await area.press('End');
+    await area.press('Enter');
+    const word = (await results.first().textContent())!;
+    await results.first().click();
+    await expect(area).toHaveValue(`Te lo digo de corazón\n${word}`);
   });
 
-  test('el material sortea imágenes, título y restricciones', async ({ page }) => {
+  test('el material sortea, y lo que se toca va a la letra', async ({ page }) => {
     await goto(page, '/letras');
-    await page.getByRole('button', { name: 'Material' }).click();
+    await page.getByRole('button', { name: 'Material', exact: true }).click();
     const material = page.getByTestId('material');
     const before = await material.textContent();
     await page.locator('#roll-material').click();
     await expect(material).not.toHaveText(before!);
+    const image = material.getByRole('button').first();
+    const word = (await image.textContent())!;
+    await image.click();
+    await expect(page.getByTestId('lyric-text')).toHaveValue(word);
+    const banned = (await page.locator('#forbid-material').textContent())!.replace(' ✕', '');
+    await page.locator('#forbid-material').click();
+    await expect(page.getByTestId('forbidden')).toHaveValue(banned);
   });
 
-  test('el cut-up corta, mezcla y deja rescatar', async ({ page }) => {
+  test('el cut-up corta la letra y lo rescatado vuelve a ella', async ({ page }) => {
     await goto(page, '/letras');
-    await page.getByRole('button', { name: 'Cut-up' }).click();
-    await page
-      .getByTestId('cutup-source')
-      .fill('una frase cualquiera para cortar en pedazos\ny otra frase más larga todavía');
+    const area = page.getByTestId('lyric-text');
+    await area.fill('una frase cualquiera para cortar en pedazos');
+    await page.getByRole('button', { name: 'Cut-up', exact: true }).click();
+    await page.getByTestId('cutup-source').fill('y otra frase más larga todavía');
     await page.locator('#cut').click();
     const pieces = page.getByTestId('cutup-pieces').getByRole('button');
     await expect(pieces.first()).toBeVisible();
-    const piece = await pieces.first().textContent();
+    const piece = (await pieces.first().textContent())!;
+    await area.press('End');
+    await area.press('Enter');
     await pieces.first().click();
-    await expect(page.getByTestId('cutup-rescued')).toContainText(piece!);
+    await expect(area).toHaveValue(`una frase cualquiera para cortar en pedazos\n${piece}`);
   });
 
-  test('con el reloj corriendo no se puede borrar', async ({ page }) => {
+  test('en escritorio entra entera: no se desplaza la página', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await goto(page, '/letras');
-    await page.getByRole('button', { name: 'Reloj' }).click();
+    await page
+      .getByTestId('lyric-text')
+      .fill(Array.from({ length: 40 }, (_, i) => `verso número ${i}`).join('\n'));
+    for (const name of ['Rimas', 'Acentos', 'Material', 'Cut-up']) {
+      await page.getByRole('button', { name, exact: true }).click();
+      expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0);
+    }
+  });
+
+  test('con el reloj corriendo no se puede borrar la letra', async ({ page }) => {
+    await goto(page, '/letras');
     await expect(page.getByTestId('clock')).toHaveText('3:00');
     await page.locator('#clock-start').click();
     await expect(page.getByTestId('clock')).toHaveText('2:59', { timeout: 2500 });
-    const area = page.getByTestId('clock-text');
+    const area = page.getByTestId('lyric-text');
+    await area.click();
     await area.pressSequentially('hola');
     await area.press('Backspace');
     await expect(area).toHaveValue('hola');

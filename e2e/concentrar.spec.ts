@@ -63,7 +63,8 @@ test.describe('la consigna es la entrada', () => {
     await expect(page).toHaveURL(/\/letras/);
     const modal = page.getByTestId('tool-modal');
     await expect(modal).toBeVisible();
-    await expect(modal.getByRole('heading', { level: 1 })).toHaveText('Letras');
+    await expect(modal.getByText('Consigna de letra')).toBeVisible();
+    await expect(modal.getByTestId('lyric-text')).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(modal).toHaveCount(0);

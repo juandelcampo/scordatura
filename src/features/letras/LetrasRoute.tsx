@@ -1,337 +1,330 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+// Letras: una sola pantalla. A la izquierda la letra, con sus sílabas y su rima en el margen y los
+// avisos debajo; a la derecha, las herramientas (rimas, acentos, material y cut-up), que escriben en
+// la letra en vez de en un texto aparte. En escritorio entra entera: cada panel se desplaza adentro.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { MetaFunction } from 'react-router';
+import { resolveRow, rowIndex } from '~/core/consigna';
+import {
+  findRhymes,
+  groupBySyllables,
+  parseRhymeIndex,
+  type RhymeGroup,
+  type RhymeIndex,
+  type RhymeMode,
+} from '~/core/rhymes';
 import { createRng, randomSeed } from '~/core/rng';
 import { rollLyric } from '~/core/rollers';
+import { cutUp, lastWord } from '~/core/spanish';
 import {
-  assonantKey,
-  consonantKey,
-  cutUp,
-  lastWord,
-  metricCount,
-  prosody,
-  rhymeScheme,
-  schemeProblems,
-  stressIndex,
-  syllabify,
-  wordsIn,
-} from '~/core/spanish';
+  FREE,
+  analyze,
+  lupa,
+  pautaFromConsigna,
+  problems,
+  stressRows,
+  type Align,
+  type Pauta,
+  type RhymeKind,
+  type VerseLine,
+} from '~/core/verse';
+import { MOLDS } from '~/data/lyrics-material';
 import { IMAGE_POOL } from '~/data/pools';
-import { publishToConsigna } from '~/shared/consigna';
+import { publishToConsigna, useConsigna } from '~/shared/consigna';
 import { useProject } from '~/shared/project';
 import { SectionPicker } from '~/shared/SectionPicker';
 import { useSettings } from '~/shared/settings';
-import { Button, PageTitle, Segmented, Slab, SlabHead, Tabs } from '~/shared/ui/ui';
+import { Button, Segmented } from '~/shared/ui/ui';
 import styles from './letras.module.css';
 
 export const meta: MetaFunction = () => [
-  { title: 'Herramientas para escribir letras: sílabas, rimas y prosodia · Scordatura' },
+  { title: 'Herramientas para escribir letras: sílabas, rimas y acentos · Scordatura' },
   {
     name: 'description',
     content:
-      'Contador de sílabas métricas, esquemas de rima, prosodia sobre el compás, diccionario de rimas, cut-up y escritura contra reloj.',
+      'Escribí la letra con las sílabas y la rima de cada verso a la vista, moldes de la tradición, acentos comparados entre versos, diccionario de rimas con voseo, cut-up y escritura contra reloj.',
   },
 ];
 
-const SCHEMES = ['', 'ABAB', 'AABB', 'ABBA', 'ABCB'];
-
-function WriteTab() {
-  const active = useProject((s) => s.active);
-  const text = useProject((s) => s.sections[s.active]?.text) ?? '';
-  const updateSection = useProject((s) => s.updateSection);
-  const [target, setTarget] = useState(8);
-  const [scheme, setScheme] = useState('ABAB');
-  const [kind, setKind] = useState<'consonante' | 'asonante'>('asonante');
-  const [forbidden, setForbidden] = useState('');
-  const [strongEvery, setStrongEvery] = useState(4);
-  const [pickup, setPickup] = useState(0);
-
-  const lines = text.split('\n');
-  const written = lines.filter((line) => wordsIn(line).length > 0);
-  const scheme_ = rhymeScheme(written, kind);
-  const keyOf = kind === 'consonante' ? consonantKey : assonantKey;
-  const problems = scheme
-    ? schemeProblems(
-        written.map((line) => keyOf(lastWord(line))),
-        scheme.repeat(Math.ceil(written.length / scheme.length)),
-      )
-    : [];
-  const banned = forbidden.trim().toLowerCase();
-
-  return (
-    <>
-      <Slab>
-        <SlabHead title="Escribir">
-          <SectionPicker />
-        </SlabHead>
-        <label className={styles.field}>
-          <span>Letra de la sección {active}</span>
-          <textarea
-            rows={6}
-            value={text}
-            placeholder={'En un lugar de la Mancha\nde cuyo nombre no quiero acordarme'}
-            data-testid="lyric-text"
-            onChange={(event) => updateSection(active, { text: event.target.value })}
-          />
-        </label>
-        <div className={styles.fields}>
-          <label className={styles.field}>
-            <span>Sílabas por verso</span>
-            <input
-              type="number"
-              min={2}
-              max={20}
-              value={target}
-              data-testid="target"
-              onChange={(event) => setTarget(Number(event.target.value))}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Esquema</span>
-            <select value={scheme} onChange={(event) => setScheme(event.target.value)} data-testid="scheme">
-              {SCHEMES.map((value) => (
-                <option key={value} value={value}>
-                  {value || 'Sin esquema'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className={styles.field}>
-            <span>Rima</span>
-            <Segmented
-              label="Tipo de rima"
-              value={kind}
-              onChange={setKind}
-              options={[
-                { value: 'asonante', label: 'Asonante' },
-                { value: 'consonante', label: 'Consonante' },
-              ]}
-            />
-          </div>
-          <label className={styles.field}>
-            <span>Palabra prohibida</span>
-            <input
-              value={forbidden}
-              placeholder="noche"
-              data-testid="forbidden"
-              onChange={(event) => setForbidden(event.target.value)}
-            />
-          </label>
-        </div>
-      </Slab>
-
-      <Slab>
-        <SlabHead title="Métrica y rima" />
-        {written.length === 0 ? (
-          <p className={styles.hint}>
-            Escribí unos versos y acá vas a ver cuántas sílabas tiene cada uno y cómo riman.
-          </p>
-        ) : (
-          <ol className={styles.lines}>
-            {written.map((line, index) => {
-              const count = metricCount(line);
-              const off = count.total !== target;
-              const hasBanned = banned !== '' && wordsIn(line).some((word) => word.toLowerCase() === banned);
-              const adjust =
-                count.adjustment === 1
-                  ? ' (+1: final aguda)'
-                  : count.adjustment === -1
-                    ? ' (−1: final esdrújula)'
-                    : '';
-              return (
-                <li key={index} data-testid="line" data-off={off}>
-                  <span className={styles.lineText}>{line}</span>
-                  <span className={styles.lineMeta}>
-                    <strong data-testid="line-count">{count.total}</strong> sílabas{adjust}
-                    {' · '}rima <strong data-testid="line-rhyme">{scheme_[index]}</strong>
-                    {off && ` · se va de ${target}`}
-                    {problems.includes(index) && ` · no cumple ${scheme}`}
-                    {hasBanned && ' · usa la palabra prohibida'}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-        <p className={styles.hint}>
-          Sigue las reglas generales: sinalefa entre palabras, y final aguda +1 o esdrújula −1. Las licencias
-          poéticas dependen de cómo lo leas, así que tomalo como guía.
-        </p>
-      </Slab>
-
-      <Slab>
-        <SlabHead title="Prosodia" />
-        <p className={styles.hint}>
-          Una sílaba por pulso. Si una sílaba acentuada cae en tiempo débil, se marca: es el error más difícil
-          de oír en uno mismo.
-        </p>
-        <div className={styles.fields}>
-          <label className={styles.field}>
-            <span>Tiempo fuerte cada</span>
-            <select value={strongEvery} onChange={(event) => setStrongEvery(Number(event.target.value))}>
-              {[2, 3, 4].map((value) => (
-                <option key={value} value={value}>
-                  {value} pulsos
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span>Sílabas antes del tiempo 1</span>
-            <select value={pickup} onChange={(event) => setPickup(Number(event.target.value))}>
-              {[0, 1, 2, 3].map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className={styles.prosody}>
-          {written.map((line, index) => (
-            <div key={index} className={styles.prosodyLine} data-testid="prosody-line">
-              {prosody(line, strongEvery, pickup).map((cell, cellIndex) => (
-                <span
-                  key={cellIndex}
-                  data-strong={cell.strong}
-                  data-stressed={cell.stressed}
-                  data-clash={cell.clash}
-                >
-                  {cell.text}
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </Slab>
-    </>
-  );
+/** La consigna de letra que está en curso. */
+function useLyricRow(): { label: string; rule: string } {
+  const consigna = useConsigna((s) => s.consigna);
+  return useMemo(() => {
+    const index = rowIndex('letra');
+    const { label, rule } = resolveRow(index, consigna.rows[index]!);
+    return { label, rule };
+  }, [consigna]);
 }
 
-let wordsPromise: Promise<string[]> | null = null;
-/** La lista pesa unos megas: se pide recién al buscar la primera rima. */
-function loadWords(): Promise<string[]> {
-  wordsPromise ??= fetch('/palabras.txt')
+const rollConsigna = (risk: Parameters<typeof rollLyric>[0]['risk']) => {
+  const rolled = rollLyric({ risk, rng: createRng(randomSeed()) });
+  publishToConsigna('letra', { label: rolled.label, rule: rolled.rule });
+};
+
+// ——— La pauta ———
+
+type MoldChoice = 'libre' | 'consigna' | 'medida' | (typeof MOLDS)[number]['id'];
+const CUSTOM_SCHEMES = ['', 'abab', 'aabb', 'abba', 'xaxa', '-'];
+const schemeName = (scheme: string) =>
+  scheme === '' ? 'Sin esquema' : scheme === '-' ? 'Sin rima' : scheme.toUpperCase().replace(/X/g, 'x');
+
+function describe(pauta: Pauta): string {
+  const parts: string[] = [];
+  if (pauta.pattern.length) parts.push(`${[...new Set(pauta.pattern)].join('-')} sílabas`);
+  if (pauta.scheme) parts.push(schemeName(pauta.scheme));
+  return parts.join(', ') || 'libre';
+}
+
+// ——— El reloj ———
+
+const CLOCK_SECONDS = 180;
+
+function useClock() {
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const running = remaining !== null && remaining > 0;
+  useEffect(() => {
+    if (!running) return;
+    const timer = setTimeout(() => setRemaining((value) => (value ?? 1) - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [running, remaining]);
+  const shown = remaining ?? CLOCK_SECONDS;
+  return {
+    running,
+    done: remaining === 0,
+    time: `${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`,
+    toggle: () => setRemaining(running ? null : CLOCK_SECONDS),
+  };
+}
+
+// ——— El diccionario ———
+
+let indexPromise: Promise<RhymeIndex> | null = null;
+/** La lista pesa un mega: se pide recién al buscar la primera rima. */
+function loadIndex(): Promise<RhymeIndex> {
+  indexPromise ??= fetch('/palabras.txt')
     .then((response) => {
       if (!response.ok) throw new Error('No se pudo cargar la lista');
       return response.text();
     })
-    .then((text) => text.split('\n'))
+    .then(parseRhymeIndex)
     .catch((error) => {
-      wordsPromise = null;
+      indexPromise = null;
       throw error;
     });
-  return wordsPromise;
+  return indexPromise;
 }
 
-const MAX_RESULTS = 90;
-type RhymeMode = 'consonante' | 'asonante' | 'final' | 'vocal';
+const PER_GROUP = 15;
 
-function matchingWords(words: string[], query: string, mode: RhymeMode): string[] {
-  const clean = query.trim().toLowerCase();
-  if (!clean) return [];
-  if (mode === 'final') return words.filter((word) => word.endsWith(clean));
-  if (mode === 'vocal') {
-    return words.filter((word) => {
-      if (word.length > 7) return false;
-      const syllable = syllabify(word)[stressIndex(word)] ?? '';
-      return syllable.normalize('NFD').includes(clean);
-    });
-  }
-  const keyOf = mode === 'consonante' ? consonantKey : assonantKey;
-  const key = keyOf(clean);
-  return words.filter((word) => word !== clean && keyOf(word) === key);
-}
-
-/** Una muestra repartida por todo el alfabeto, distinta en cada búsqueda. */
-function sample(found: string[], next: () => number): string[] {
-  if (found.length <= MAX_RESULTS) return found;
-  const step = found.length / MAX_RESULTS;
-  const offset = next() * step;
-  return Array.from({ length: MAX_RESULTS }, (_, index) => found[Math.floor(offset + index * step)]!);
-}
-
-function RhymesTab() {
+/** La búsqueda de rimas vive arriba: el margen del editor también la dispara. */
+function useRhymeSearch() {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<RhymeMode>('consonante');
-  const [results, setResults] = useState<string[] | null>(null);
+  const [groups, setGroups] = useState<RhymeGroup[] | null>(null);
   const [status, setStatus] = useState('');
+  const [searched, setSearched] = useState('');
 
-  const search = async () => {
+  const search = async (word = query, how = mode) => {
+    if (!word.trim()) return;
+    setQuery(word);
     setStatus('Buscando…');
     try {
-      const words = await loadWords();
-      const found = matchingWords(words, query, mode);
-      setResults(sample(found, createRng(randomSeed()).next));
-      if (found.length === 0) setStatus('No encontré palabras.');
-      else if (found.length > MAX_RESULTS)
-        setStatus(`${found.length} palabras. Muestra de ${MAX_RESULTS}: buscá de nuevo para ver otras.`);
-      else setStatus(`${found.length} palabras.`);
+      const index = await loadIndex();
+      const found = findRhymes(index, word, how);
+      const grouped = groupBySyllables(found, PER_GROUP, Math.random());
+      setGroups(grouped);
+      setSearched(word.trim());
+      const sampled = grouped.some((group) => group.total > group.words.length);
+      setStatus(
+        found.length === 0
+          ? 'No encontré palabras.'
+          : `${found.length} palabras${sampled ? '. Es una muestra: buscá de nuevo para ver otras' : ''}.`,
+      );
     } catch {
       setStatus('No se pudo cargar el diccionario. Revisá la conexión y probá de nuevo.');
     }
   };
 
-  const placeholder = mode === 'final' ? 'ción' : mode === 'vocal' ? 'a' : 'camino';
+  return { query, setQuery, mode, setMode, groups, status, searched, search };
+}
 
+function RhymePanel({
+  rhymes,
+  current,
+  onInsert,
+}: {
+  rhymes: ReturnType<typeof useRhymeSearch>;
+  /** La última palabra del verso donde está el cursor. */
+  current: string;
+  onInsert: (word: string) => void;
+}) {
+  const { query, setQuery, mode, setMode, groups, status, searched, search } = rhymes;
   return (
-    <Slab>
-      <SlabHead title="Diccionario de rimas" />
+    <>
+      {current && (
+        <Button variant="mini" full id="rhyme-current" onClick={() => void search(current)}>
+          Rimas de «{current}»
+        </Button>
+      )}
       <form
+        className={styles.rhymeForm}
         onSubmit={(event) => {
           event.preventDefault();
           void search();
         }}
       >
-        <div className={styles.fields}>
-          <label className={styles.field}>
-            <span>{mode === 'final' ? 'Terminación' : mode === 'vocal' ? 'Vocal tónica' : 'Palabra'}</span>
-            <input
-              value={query}
-              placeholder={placeholder}
-              data-testid="rhyme-query"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Buscar por</span>
-            <select
-              value={mode}
-              data-testid="rhyme-mode"
-              onChange={(event) => setMode(event.target.value as RhymeMode)}
-            >
-              <option value="consonante">Rima consonante</option>
-              <option value="asonante">Rima asonante</option>
-              <option value="final">Terminación</option>
-              <option value="vocal">Vocal tónica</option>
-            </select>
-          </label>
-          <button type="submit" className={styles.submit} id="rhyme-search">
-            Buscar
-          </button>
-        </div>
+        <input
+          value={query}
+          aria-label={mode === 'final' ? 'Terminación' : 'Palabra'}
+          placeholder={mode === 'final' ? 'ción' : 'camino'}
+          data-testid="rhyme-query"
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <button type="submit" className={styles.submit} id="rhyme-search">
+          Buscar
+        </button>
       </form>
-      <p className={styles.hint}>
-        Para notas largas conviene una vocal tónica abierta (a, e, o), que se canta mejor. La lista es muy
-        amplia e incluye palabras poco comunes.
-      </p>
+      <Segmented
+        label="Buscar por"
+        value={mode}
+        onChange={(next) => {
+          setMode(next);
+          if (searched) void search(query, next);
+        }}
+        stretch
+        options={[
+          { value: 'consonante', label: 'Consonante' },
+          { value: 'asonante', label: 'Asonante' },
+          { value: 'final', label: 'Final' },
+        ]}
+      />
       <p role="status" className={styles.hint}>
         {status}
       </p>
-      {results && results.length > 0 && (
-        <ul className={styles.words} data-testid="rhyme-results">
-          {results.map((word) => (
-            <li key={word}>{word}</li>
+      {groups && groups.length > 0 && (
+        <div className={styles.rhymeGroups} data-testid="rhyme-results">
+          {groups.map((group) => (
+            <div key={group.syllables}>
+              <h4>
+                {group.syllables} {group.syllables === 1 ? 'sílaba' : 'sílabas'}
+                {group.total > group.words.length && <span> · {group.total}</span>}
+              </h4>
+              <ul>
+                {group.words.map((word) => (
+                  <li key={word}>
+                    <button type="button" onClick={() => onInsert(word)}>
+                      {word}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-    </Slab>
+      <p className={styles.hint}>
+        Tocá la letra de rima de un verso, o una palabra para ponerla donde está el cursor. Para una nota
+        larga, mejor una vocal abierta: a, e, o.
+      </p>
+    </>
   );
 }
 
-function MaterialTab() {
+// ——— Los acentos ———
+
+function StressPanel({ stanzas }: { stanzas: VerseLine[][] }) {
+  const [align, setAlign] = useState<Align>('final');
+  const [refs, setRefs] = useState<Record<number, number>>({});
+  return (
+    <>
+      <Segmented
+        label="Alinear"
+        value={align}
+        onChange={setAlign}
+        stretch
+        options={[
+          { value: 'final', label: 'Por el final' },
+          { value: 'inicio', label: 'Por el principio' },
+        ]}
+      />
+      <p className={styles.hint}>
+        Sobre la misma melodía, los versos acentúan en los mismos lugares. Se comparan con el marcado: en
+        naranja, un acento de más; punteado, uno que falta. Tocá un número para cambiar la referencia.
+      </p>
+      {stanzas.length === 0 && <p className={styles.hint}>Escribí unos versos para ver sus acentos.</p>}
+      {stanzas.map((lines) => {
+        const stanza = lines[0]!.stanza;
+        const reference = refs[stanza] ?? lines[0]!.row;
+        const rows = stressRows(lines, reference, align);
+        return (
+          <div key={stanza} className={styles.stressScroll}>
+            <div className={styles.stressGrid} data-testid="prosody-stanza">
+              {rows.map((row, index) => (
+                <StressLine
+                  key={row.row}
+                  gridRow={index + 1}
+                  row={row}
+                  isRef={row.row === reference}
+                  onPick={() => setRefs({ ...refs, [stanza]: row.row })}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function StressLine({
+  row,
+  gridRow,
+  isRef,
+  onPick,
+}: {
+  row: ReturnType<typeof stressRows>[number];
+  gridRow: number;
+  isRef: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.stressLabel}
+        style={{ gridRow, gridColumn: 1 }}
+        aria-pressed={isRef}
+        aria-label={`Verso ${row.row + 1}, acentos en ${row.positions.join(', ')}${isRef ? ', referencia' : ''}`}
+        onClick={onPick}
+      >
+        {row.row + 1}
+      </button>
+      {row.cells.map((cell, index) => (
+        <span
+          key={index}
+          data-testid="prosody-cell"
+          className={styles.stressCell}
+          style={{ gridRow, gridColumn: row.offset + index + 2 }}
+          data-stressed={cell.stressed}
+          data-clash={cell.clash}
+          data-missing={cell.missing}
+        >
+          {cell.text}
+        </span>
+      ))}
+    </>
+  );
+}
+
+// ——— Material ———
+
+function MaterialPanel({
+  onInsert,
+  onForbid,
+}: {
+  onInsert: (text: string) => void;
+  onForbid: (word: string) => void;
+}) {
   const risk = useSettings((s) => s.risk);
-  const active = useProject((s) => s.active);
-  const updateSection = useProject((s) => s.updateSection);
   const [seed, setSeed] = useState(1);
   const roll = useMemo(() => {
     const rng = createRng(seed);
@@ -346,183 +339,404 @@ function MaterialTab() {
     };
   }, [seed, risk]);
 
-  const rows: Array<[string, string, string]> = [
-    [
-      'Imagen',
-      `${roll.object}, ${roll.place}, ${roll.verb}`,
-      'Un objeto, un lugar y un verbo: lo concreto escapa de las palabras abstractas.',
-    ],
-    ['Título primero', roll.title, 'Escribí la letra hacia este título, para que llegue a algún lado.'],
-    ['Sin decir', roll.forbidden, 'Si no podés nombrarlo, tenés que mostrarlo.'],
-    ['Restricción', roll.restriction, 'Limitar lo que se puede decir empuja a decir otra cosa.'],
-    ['Consigna', roll.consigna.label, roll.consigna.rule],
-  ];
+  const chip = (text: string) => (
+    <button type="button" className={styles.chip} onClick={() => onInsert(text)}>
+      {text}
+    </button>
+  );
 
   return (
-    <Slab>
-      <SlabHead title="Material">
-        <Button id="roll-material" onClick={() => setSeed(randomSeed())}>
-          Sortear
-        </Button>
-      </SlabHead>
+    <>
+      <Button full id="roll-material" onClick={() => setSeed(randomSeed())}>
+        Sortear material
+      </Button>
       <dl className={styles.material} data-testid="material">
-        {rows.map(([name, value, why]) => (
-          <div key={name}>
-            <dt>{name}</dt>
-            <dd>{value}</dd>
-            <dd className={styles.why}>{why}</dd>
-          </div>
-        ))}
+        <div>
+          <dt>Imagen</dt>
+          <dd>
+            {chip(roll.object)} {chip(roll.place)} {chip(roll.verb)}
+          </dd>
+          <dd className={styles.why}>Lo concreto escapa de las palabras abstractas. Tocá para ponerla.</dd>
+        </div>
+        <div>
+          <dt>Título primero</dt>
+          <dd>{chip(roll.title)}</dd>
+          <dd className={styles.why}>Escribí hacia este título, para que la letra llegue a algún lado.</dd>
+        </div>
+        <div>
+          <dt>Sin decir</dt>
+          <dd>
+            <button
+              type="button"
+              className={styles.chip}
+              id="forbid-material"
+              onClick={() => onForbid(roll.forbidden)}
+            >
+              {roll.forbidden} ✕
+            </button>
+          </dd>
+          <dd className={styles.why}>Tocala para prohibirla: si no podés nombrarlo, tenés que mostrarlo.</dd>
+        </div>
+        <div>
+          <dt>Restricción</dt>
+          <dd>{roll.restriction}</dd>
+        </div>
+        <div>
+          <dt>Otra consigna</dt>
+          <dd>{roll.consigna.label}</dd>
+          <dd className={styles.why}>{roll.consigna.rule}</dd>
+        </div>
       </dl>
-      <div className={styles.fields}>
-        <SectionPicker />
-        <Button
-          id="use-material"
-          onClick={() => {
-            updateSection(active, { lyric: roll.consigna.label });
-            publishToConsigna('letra', { label: roll.consigna.label, rule: roll.consigna.rule });
-          }}
-        >
-          Usar consigna en {active}
-        </Button>
-      </div>
-    </Slab>
+      <Button
+        full
+        id="use-material"
+        onClick={() => publishToConsigna('letra', { label: roll.consigna.label, rule: roll.consigna.rule })}
+      >
+        Usar esta consigna
+      </Button>
+    </>
   );
 }
 
-function CutUpTab() {
-  const [source, setSource] = useState('');
+// ——— Cut-up ———
+
+function CutUpPanel({ text, onInsert }: { text: string; onInsert: (piece: string) => void }) {
+  const [extra, setExtra] = useState('');
   const [pieces, setPieces] = useState<string[]>([]);
-  const [rescued, setRescued] = useState<string[]>([]);
+  const source = [text, extra].filter((part) => part.trim()).join('\n');
   return (
-    <Slab>
-      <SlabHead title="Cut-up" />
+    <>
+      <p className={styles.hint}>
+        Corta tu letra (y lo que pegues acá) en pedazos de dos a cuatro palabras y los mezcla. Tocá lo que te
+        sorprenda: entra a la letra donde está el cursor.
+      </p>
       <label className={styles.field}>
-        <span>Pegá frases tuyas sueltas</span>
+        <span>Sumá otro texto</span>
         <textarea
-          rows={5}
-          value={source}
+          rows={3}
+          value={extra}
+          placeholder="Frases sueltas, un diario, un prospecto"
           data-testid="cutup-source"
-          onChange={(event) => setSource(event.target.value)}
+          onChange={(event) => setExtra(event.target.value)}
         />
       </label>
-      <div className={styles.fields}>
-        <Button
-          variant="primary"
-          id="cut"
-          onClick={() => {
-            const rng = createRng(randomSeed());
-            setPieces(cutUp(source, rng.next));
-          }}
-        >
-          Cortar y mezclar
-        </Button>
-      </div>
-      {pieces.length > 0 && <p className={styles.hint}>Tocá lo que te sorprenda para rescatarlo.</p>}
+      <Button
+        full
+        id="cut"
+        disabled={!source.trim()}
+        onClick={() => setPieces(cutUp(source, createRng(randomSeed()).next))}
+      >
+        Cortar y mezclar
+      </Button>
       <div className={styles.pieces} data-testid="cutup-pieces">
         {pieces.map((piece, index) => (
-          <button key={`${piece}-${index}`} type="button" onClick={() => setRescued([...rescued, piece])}>
+          <button key={`${piece}-${index}`} type="button" onClick={() => onInsert(piece)}>
             {piece}
           </button>
         ))}
       </div>
-      {rescued.length > 0 && (
-        <>
-          <h3 className={styles.subtitle}>Rescatado</h3>
-          <p className={styles.rescued} data-testid="cutup-rescued">
-            {rescued.join(' / ')}
-          </p>
-          <Button variant="mini" onClick={() => setRescued([])}>
-            Vaciar
-          </Button>
-        </>
-      )}
-    </Slab>
+    </>
   );
 }
 
-const CLOCK_SECONDS = 180;
+// ——— La pantalla ———
 
-function ClockTab() {
-  const [remaining, setRemaining] = useState<number | null>(null);
-  const [text, setText] = useState('');
-  const area = useRef<HTMLTextAreaElement>(null);
-  const running = remaining !== null && remaining > 0;
-
-  useEffect(() => {
-    if (!running) return;
-    const timer = setTimeout(() => setRemaining((value) => (value ?? 1) - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [running, remaining]);
-
-  const minutes = remaining === null ? 3 : Math.floor(remaining / 60);
-  const seconds = remaining === null ? 0 : remaining % 60;
-
-  return (
-    <Slab>
-      <SlabHead title="Escritura con reloj" />
-      <p className={styles.hint}>
-        Tres minutos sin parar y sin borrar. Mientras corre el reloj, borrar no funciona.
-      </p>
-      <p className={styles.clock} data-testid="clock" role="timer">
-        {minutes}:{String(seconds).padStart(2, '0')}
-      </p>
-      <Button
-        variant="primary"
-        id="clock-start"
-        onClick={() => {
-          setRemaining(running ? null : CLOCK_SECONDS);
-          if (!running) area.current?.focus();
-        }}
-      >
-        {running ? 'Parar' : 'Empezar'}
-      </Button>
-      <label className={styles.field}>
-        <span>Escribí</span>
-        <textarea
-          ref={area}
-          rows={8}
-          value={text}
-          data-testid="clock-text"
-          onChange={(event) => {
-            // Mientras corre el reloj, el texto solo puede crecer.
-            if (!running || event.target.value.length >= text.length) setText(event.target.value);
-          }}
-        />
-      </label>
-      {remaining === 0 && <p className={styles.consigna}>Tiempo. Ahora sí, leelo y rescatá lo que sirva.</p>}
-    </Slab>
-  );
-}
-
-type TabId = 'escribir' | 'rimas' | 'material' | 'cutup' | 'reloj';
+type PanelId = 'rimas' | 'acentos' | 'material' | 'cutup';
 
 export default function LetrasRoute() {
-  const [tab, setTab] = useState<TabId>('escribir');
+  const risk = useSettings((s) => s.risk);
+  const active = useProject((s) => s.active);
+  const text = useProject((s) => s.sections[s.active]?.text) ?? '';
+  const updateSection = useProject((s) => s.updateSection);
+  const { label, rule } = useLyricRow();
+  const fromConsigna = pautaFromConsigna(label);
+
+  const [choice, setChoice] = useState<MoldChoice | null>(null);
+  const mold: MoldChoice = choice ?? (fromConsigna ? 'consigna' : 'libre');
+  const [custom, setCustom] = useState<Pauta>({ pattern: [8], scheme: 'abab' });
+  const [kind, setKind] = useState<RhymeKind>('asonante');
+  const [forbidden, setForbidden] = useState('');
+  const [caret, setCaret] = useState(0);
+  const [panel, setPanel] = useState<PanelId>('rimas');
+  const rhymes = useRhymeSearch();
+  const area = useRef<HTMLTextAreaElement>(null);
+  const clock = useClock();
+
+  const found = MOLDS.find((item) => item.id === mold);
+  const pauta: Pauta =
+    mold === 'consigna'
+      ? (fromConsigna ?? FREE)
+      : mold === 'medida'
+        ? custom
+        : found
+          ? { pattern: found.pattern, scheme: found.scheme }
+          : FREE;
+
+  const stanzas = analyze(text, pauta, kind, forbidden);
+  const byRow = new Map(stanzas.flatMap((stanza) => stanza.lines).map((line) => [line.row, line]));
+  const rows = text.split('\n');
+  const notes = problems(stanzas, pauta);
+  const looks = lupa(text);
+  const currentWord = lastWord(rows[caret] ?? '');
+
+  const trackCaret = () => {
+    const element = area.current;
+    if (element) setCaret(element.value.slice(0, element.selectionStart).split('\n').length - 1);
+  };
+
+  /** Pone una palabra o un pedazo donde está el cursor, con un espacio si hace falta. */
+  const insert = (piece: string) => {
+    const element = area.current;
+    const at = element?.selectionStart ?? text.length;
+    const before = text.slice(0, at);
+    const after = text.slice(at);
+    const space = before && !/\s$/.test(before) ? ' ' : '';
+    updateSection(active, { text: `${before}${space}${piece}${after}` });
+    const position = at + space.length + piece.length;
+    requestAnimationFrame(() => {
+      element?.focus();
+      element?.setSelectionRange(position, position);
+    });
+  };
+
+  const searchLine = (word: string) => {
+    setPanel('rimas');
+    void rhymes.search(word);
+  };
+
+  const moldOptions: Array<{ value: MoldChoice; label: string }> = [
+    { value: 'libre', label: 'Libre' },
+    ...(fromConsigna ? [{ value: 'consigna' as const, label: `Consigna: ${describe(fromConsigna)}` }] : []),
+    ...MOLDS.map((item) => ({
+      value: item.id,
+      label: `${item.name} (${item.pattern.length > 4 ? `${item.pattern.length} de 8` : item.pattern.join('-')})`,
+    })),
+    { value: 'medida', label: 'A medida' },
+  ];
+
   return (
-    <div>
-      <Slab>
-        <PageTitle eyebrow="Letras" title="Letras">
-          <p>No escribe la letra por vos: te da material crudo, restricciones y la teoría de la métrica.</p>
-        </PageTitle>
-      </Slab>
-      <Tabs<TabId>
-        label="Herramientas de letras"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'escribir', label: 'Escribir' },
-          { value: 'rimas', label: 'Rimas' },
-          { value: 'material', label: 'Material' },
-          { value: 'cutup', label: 'Cut-up' },
-          { value: 'reloj', label: 'Reloj' },
-        ]}
-      />
-      {tab === 'escribir' && <WriteTab />}
-      {tab === 'rimas' && <RhymesTab />}
-      {tab === 'material' && <MaterialTab />}
-      {tab === 'cutup' && <CutUpTab />}
-      {tab === 'reloj' && <ClockTab />}
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.headerText}>
+          <p className={styles.eyebrow}>Consigna de letra</p>
+          <h1 className={styles.title} title={label}>
+            {label}
+          </h1>
+          <p className={styles.rule} title={rule}>
+            <strong>Regla →</strong> <span data-testid="lyric-rule">{rule}</span>
+          </p>
+        </div>
+        <Button id="roll-lyric" onClick={() => rollConsigna(risk)}>
+          Sortear otra
+        </Button>
+      </header>
+
+      <div className={styles.toolbar}>
+        <SectionPicker />
+        <label className={styles.field}>
+          <span>Molde</span>
+          <select
+            value={mold}
+            data-testid="mold"
+            onChange={(event) => setChoice(event.target.value as MoldChoice)}
+          >
+            {moldOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {mold === 'medida' && (
+          <>
+            <label className={styles.field}>
+              <span>Sílabas</span>
+              <input
+                type="number"
+                min={2}
+                max={20}
+                value={custom.pattern[0] ?? ''}
+                data-testid="target"
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setCustom({ ...custom, pattern: value > 0 ? [value] : [] });
+                }}
+              />
+            </label>
+            <label className={styles.field}>
+              <span>Esquema</span>
+              <select
+                value={custom.scheme}
+                data-testid="scheme"
+                onChange={(event) => setCustom({ ...custom, scheme: event.target.value })}
+              >
+                {CUSTOM_SCHEMES.map((scheme) => (
+                  <option key={scheme} value={scheme}>
+                    {schemeName(scheme)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        <div className={styles.field}>
+          <span>Rima</span>
+          <Segmented
+            label="Tipo de rima"
+            value={kind}
+            onChange={setKind}
+            options={[
+              { value: 'asonante', label: 'Asonante' },
+              { value: 'consonante', label: 'Consonante' },
+            ]}
+          />
+        </div>
+        <label className={styles.field}>
+          <span>Prohibida</span>
+          <input
+            value={forbidden}
+            placeholder="noche"
+            data-testid="forbidden"
+            onChange={(event) => setForbidden(event.target.value)}
+          />
+        </label>
+        <div className={styles.field}>
+          <span>Sin borrar</span>
+          <Button id="clock-start" ariaPressed={clock.running} onClick={clock.toggle}>
+            <span data-testid="clock" role="timer">
+              {clock.time}
+            </span>{' '}
+            {clock.running ? '■ Parar' : '▶ Reloj'}
+          </Button>
+        </div>
+      </div>
+
+      <div className={styles.work}>
+        <section className={styles.writing} aria-label={`Letra de la sección ${active}`}>
+          <div className={styles.editorScroll} data-clock={clock.running}>
+            <div className={styles.editor}>
+              <ol className={styles.gutter} aria-label="Sílabas y rima de cada verso">
+                {rows.map((_, row) => {
+                  const line = byRow.get(row);
+                  if (!line) return <li key={row} data-current={row === caret} />;
+                  const off = line.want !== null && line.count.total !== line.want;
+                  const badRhyme = line.missesRow >= 0 || line.rhymesWhenBlank;
+                  return (
+                    <li
+                      key={row}
+                      data-testid="line"
+                      data-off={off}
+                      data-current={row === caret}
+                      data-forbidden={line.forbidden}
+                    >
+                      <span
+                        className={styles.count}
+                        data-testid="line-count"
+                        title={`${line.count.total} sílabas${line.want ? `, pide ${line.want}` : ''}`}
+                      >
+                        {line.count.total}
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.letter}
+                        data-testid="line-rhyme"
+                        data-bad={badRhyme}
+                        aria-label={`Rimas para «${lastWord(line.text)}», verso ${row + 1}`}
+                        onClick={() => searchLine(lastWord(line.text))}
+                      >
+                        {line.letter}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              <textarea
+                ref={area}
+                wrap="off"
+                rows={Math.max(6, rows.length + 1)}
+                value={text}
+                aria-label={`Letra de la sección ${active}`}
+                placeholder={'Escribí un verso por línea.\nUna línea vacía separa estrofas.'}
+                spellCheck={false}
+                data-testid="lyric-text"
+                onSelect={trackCaret}
+                onKeyUp={trackCaret}
+                onClick={trackCaret}
+                onChange={(event) => {
+                  // Con el reloj corriendo, el texto solo puede crecer.
+                  if (clock.running && event.target.value.length < text.length) return;
+                  updateSection(active, { text: event.target.value });
+                  trackCaret();
+                }}
+              />
+            </div>
+          </div>
+
+          <div className={styles.notes}>
+            {clock.running && (
+              <p className={styles.notice}>Corre el reloj: escribí sin parar, borrar no funciona.</p>
+            )}
+            {clock.done && <p className={styles.notice}>Tiempo. Ahora sí, leelo y rescatá lo que sirva.</p>}
+            <Notes title={`Pauta: ${describe(pauta)}${found ? ` · ${found.note}` : ''}`}>
+              {text.trim() === '' ? (
+                <li>
+                  Al lado de cada verso, sus sílabas y su letra de rima. Cuenta con sinalefa; la final aguda
+                  suma una y la esdrújula resta una. Al cantar se estira o se junta: tomalo como guía.
+                </li>
+              ) : notes.length ? (
+                notes.map((note) => (
+                  <li key={note} data-tone="warn">
+                    {note}
+                  </li>
+                ))
+              ) : (
+                <li data-tone="ok">{pauta === FREE ? 'Sin pauta: nada que cumplir.' : 'Cumple la pauta.'}</li>
+              )}
+            </Notes>
+            {looks.length > 0 && (
+              <Notes title="Lupa">
+                {looks.map((note) => (
+                  <li key={note.text} data-tone={note.tone}>
+                    {note.text}
+                  </li>
+                ))}
+              </Notes>
+            )}
+          </div>
+        </section>
+
+        <aside className={styles.side} aria-label="Herramientas">
+          <div className={styles.sideTabs}>
+            <Segmented<PanelId>
+              label="Herramienta"
+              value={panel}
+              onChange={setPanel}
+              stretch
+              options={[
+                { value: 'rimas', label: 'Rimas' },
+                { value: 'acentos', label: 'Acentos' },
+                { value: 'material', label: 'Material' },
+                { value: 'cutup', label: 'Cut-up' },
+              ]}
+            />
+          </div>
+          <div className={styles.sideBody} data-testid={`panel-${panel}`}>
+            {panel === 'rimas' && <RhymePanel rhymes={rhymes} current={currentWord} onInsert={insert} />}
+            {panel === 'acentos' && <StressPanel stanzas={stanzas.map((stanza) => stanza.lines)} />}
+            {panel === 'material' && <MaterialPanel onInsert={insert} onForbid={setForbidden} />}
+            {panel === 'cutup' && <CutUpPanel text={text} onInsert={insert} />}
+          </div>
+        </aside>
+      </div>
     </div>
+  );
+}
+
+function Notes({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h3 className={styles.panelTitle}>{title}</h3>
+      <ul>{children}</ul>
+    </section>
   );
 }
