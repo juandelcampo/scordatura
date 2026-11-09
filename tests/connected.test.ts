@@ -71,7 +71,7 @@ describe('consigna con elecciones propias', () => {
     expect(consigna.rows[index]!.locked).toBe(true);
     const row = resolveRow(index, consigna.rows[index]!);
     expect(row.label).toBe('DADGAD');
-    expect(row.rule).toContain('Elegida por vos');
+    expect(row.rule).not.toContain('Elegida por vos');
     expect(row.rule).toContain('Dsus4');
     expect(row.href).toBe('/afinador/dadgad');
   });

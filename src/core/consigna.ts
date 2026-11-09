@@ -128,8 +128,6 @@ export function applyOverride<K extends RowId>(consigna: Consigna, id: K, value:
   };
 }
 
-const CHOSEN = 'Elegida por vos en la herramienta.';
-
 function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
   switch (id) {
     case 'afinacion': {
@@ -137,21 +135,21 @@ function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
       return {
         value,
         label: value.name ?? value.notes.map((note) => noteLabel(note)).join(''),
-        rule: `${CHOSEN} Al aire suena ${openChordName(value.notes)}.`,
+        rule: `Al aire suena ${openChordName(value.notes)}.`,
         href: value.href ?? `/afinador/tuya?n=${value.notes.join(',').replaceAll('#', 's')}`,
       };
     }
     case 'ritmo': {
       const value = override as RhythmConfig;
       const { label, rule } = describeRhythm(value);
-      return { value, label, rule: `${CHOSEN} ${rule}`, href: `/ritmo?${rhythmToParams(value)}` };
+      return { value, label, rule, href: `/ritmo?${rhythmToParams(value)}` };
     }
     case 'armonia': {
       const value = override as RowOverrides['armonia'];
       return {
         value,
         label: value.chords.join(' – '),
-        rule: CHOSEN,
+        rule: '',
         href: harmonyHref(value.chords, value.beats),
       };
     }
@@ -168,7 +166,7 @@ function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
       return {
         value,
         label: value.blocks.join(' '),
-        rule: CHOSEN,
+        rule: '',
         href: `/forma?f=${value.blocks.join('')}`,
       };
     }
@@ -177,14 +175,14 @@ function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
       return {
         value,
         label: `“${value.text}”`,
-        rule: value.breaks ? `${CHOSEN} Rompe ${value.breaks}.` : CHOSEN,
+        rule: value.breaks ? `Rompe ${value.breaks}.` : '',
         href: value.id ? `/cartas?c=${value.id}` : '/cartas',
       };
     }
     case 'drone': {
       const value = override as DroneConfig;
       const { label, rule } = describeDrone(value);
-      return { value, label, rule: `${CHOSEN} ${rule}`, href: `/drone?${droneToParams(value)}` };
+      return { value, label, rule, href: `/drone?${droneToParams(value)}` };
     }
   }
 }
@@ -224,7 +222,7 @@ function droneRow(consigna: Consigna, key = consignaKey(consigna)): Rolled {
   return {
     value,
     label,
-    rule: `${row.override ? `${CHOSEN} ` : ''}${rule} Sigue la tónica de la armonía.`,
+    rule: `${rule} Sigue la tónica de la armonía.`,
     href: `/drone?${droneToParams(value)}`,
   };
 }

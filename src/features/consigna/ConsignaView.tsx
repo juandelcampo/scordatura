@@ -237,9 +237,11 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
         >
           {isHarmony ? degrees : result.label}
         </p>
-        <p className={styles.rowRule} title={rule}>
-          <strong>Regla →</strong> {rule}
-        </p>
+        {rule && (
+          <p className={styles.rowRule} title={rule}>
+            <strong>Regla →</strong> {rule}
+          </p>
+        )}
       </div>
     );
   };
