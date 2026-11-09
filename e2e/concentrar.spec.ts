@@ -93,6 +93,59 @@ test.describe('la consigna es la entrada', () => {
     await expect(page).toHaveURL(/\/\?t=/);
   });
 
+  test('desde Forma, otra herramienta se abre encima, y al cerrarla Forma sigue como estaba', async ({
+    page,
+  }) => {
+    const errors = watchErrors(page);
+    await goto(page, '/');
+    const home = page.url();
+    await page.getByRole('link', { name: 'Abrir Forma' }).click();
+    const forma = page.getByTestId('tool-modal');
+    const top = page.getByTestId('tool-modal-2');
+    await forma.getByTestId('timeline').locator('[data-block]').nth(1).click();
+    await forma
+      .getByRole('group', { name: 'Biblioteca' })
+      .getByRole('button', { name: 'Vocabulario' })
+      .click();
+    const formaUrl = page.url();
+
+    await forma.getByTestId('section-chords').getByRole('link').click();
+    await expect(page).toHaveURL(/\/armonia/);
+    await expect(top).toHaveAttribute('aria-label', 'Armonía');
+    await expect(forma).toHaveAttribute('aria-label', 'Forma');
+    // La de abajo conserva sus estilos aunque su ruta ya no sea la actual.
+    expect(await forma.getByTestId('timeline').evaluate((element) => getComputedStyle(element).display)).toBe(
+      'grid',
+    );
+
+    await top.getByRole('button', { name: '✕ Volver a Forma' }).click();
+    await expect(top).toHaveCount(0);
+    await expect(page).toHaveURL(formaUrl);
+    await expect(forma.getByTestId('timeline').locator('[aria-pressed="true"]')).toHaveAttribute(
+      'data-block',
+      '1',
+    );
+    await expect(
+      forma.getByRole('group', { name: 'Biblioteca' }).getByRole('button', { name: 'Vocabulario' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    // Esc y "Atrás" cierran solo la de arriba; "Volver a la consigna" cierra todo.
+    await forma.getByTestId('section-rhythm').getByRole('link').click();
+    await expect(top).toHaveAttribute('aria-label', 'Ritmo');
+    await page.keyboard.press('Escape');
+    await expect(top).toHaveCount(0);
+    await expect(page).toHaveURL(formaUrl);
+    await forma.getByTestId('section-lyric').getByRole('link').click();
+    await expect(top).toHaveAttribute('aria-label', 'Letra');
+    await page.goBack();
+    await expect(top).toHaveCount(0);
+    await expect(forma).toBeVisible();
+    await page.locator('#tool-close').click();
+    await expect(forma).toHaveCount(0);
+    await expect(page).toHaveURL(home);
+    expect(errors).toEqual([]);
+  });
+
   test('en una pantalla de escritorio, las ocho tarjetas entran sin desplazarse', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await goto(page, '/');

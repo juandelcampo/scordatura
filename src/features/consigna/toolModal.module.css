@@ -79,3 +79,23 @@
     padding-top: 6px;
   }
 }
+
+/* Una herramienta abierta desde otra va encima, un poco más adentro: se ve el borde de la de abajo. */
+.toolModal[data-level='1'],
+.toolModal[data-level='2'],
+.toolModal[data-level='3'] {
+  box-shadow: 0 0 0 4px var(--accent);
+}
+.toolModal[data-level='1']::backdrop,
+.toolModal[data-level='2']::backdrop,
+.toolModal[data-level='3']::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+@media (min-width: 900px) {
+  .toolModal[data-level='1'],
+  .toolModal[data-level='2'],
+  .toolModal[data-level='3'] {
+    width: min(1360px, calc(100vw - 120px));
+    height: calc(100dvh - 120px);
+  }
+}

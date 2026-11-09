@@ -240,8 +240,7 @@ export default function AppShell() {
     const store = useToolModal.getState();
     if (store.from === null) return;
     if (!isToolPath(pathname)) store.clear();
-    else if (navigationType === 'PUSH') store.step(1);
-    else if (navigationType === 'POP') store.step(-1);
+    else if (navigationType !== 'REPLACE') store.sync(pathname, navigationType === 'PUSH');
   }, [location.key, pathname, navigationType]);
 
   // Abierto, el menú ocupa toda la pantalla: se cierra al navegar o con Esc.
