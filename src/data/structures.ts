@@ -71,6 +71,19 @@ export function formLetters(sections: readonly string[]): string[] {
   });
 }
 
+/** Qué es cada letra de una forma: A es la estrofa, B el estribillo. */
+export type SectionNames = Partial<Record<string, string>>;
+
+/** El nombre de cada letra, tomado de la primera vez que aparece. */
+export function formNames(sections: readonly string[]): SectionNames {
+  const letters = formLetters(sections);
+  const names: SectionNames = {};
+  letters.forEach((letter, index) => {
+    names[letter] ??= sections[index]!;
+  });
+  return names;
+}
+
 const s = (form: string) => form.split(' · ');
 
 export const SONG_FORMS: readonly SongForm[] = [

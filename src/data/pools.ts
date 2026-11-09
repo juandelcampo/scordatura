@@ -3,7 +3,14 @@ import type { ModeId } from '~/core/harmony';
 import type { DroneConfig } from '~/core/drone';
 import { drumConfig, type Meter, type RhythmConfig } from '~/core/rhythm';
 import type { Risk } from '~/core/roll';
-import { FORM_FAMILIES, SONG_FORMS, formLetters, formRule } from '~/data/structures';
+import {
+  FORM_FAMILIES,
+  SONG_FORMS,
+  formLetters,
+  formNames,
+  formRule,
+  type SectionNames,
+} from '~/data/structures';
 
 export interface Constraint {
   label: string;
@@ -12,6 +19,8 @@ export interface Constraint {
 
 export interface FormEntry extends Constraint {
   blocks: string[];
+  /** Qué es cada sección, cuando la forma viene de la biblioteca. */
+  names?: SectionNames;
 }
 
 const meter = (groups: number[], denom: 4 | 8 | 16, bpm: number): RhythmConfig => ({
@@ -369,7 +378,7 @@ const libraryForms = (risk: Risk): FormEntry[] =>
     (form) => FORM_FAMILIES.find((family) => family.value === form.family)?.risk === risk,
   ).map((form) => {
     const blocks = formLetters(form.sections);
-    return { label: blocks.join(' '), blocks, rule: formRule(form) };
+    return { label: blocks.join(' '), blocks, names: formNames(form.sections), rule: formRule(form) };
   });
 
 export const FORM_POOL: Record<Risk, FormEntry[]> = {

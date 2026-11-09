@@ -120,3 +120,41 @@ test.describe('lo que dice cada pantalla', () => {
     await expect(page.locator('[data-row="forma"]')).toHaveAttribute('data-locked', 'true');
   });
 });
+
+test.describe('secciones desde la consigna', () => {
+  const sectionB = (page: Page) =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('scordatura-proyecto')!).state.sections.B ?? {});
+
+  test('tocar un bloque de la forma cambia lo que dicen ritmo y armonía, y cambiar sortea solo para él', async ({
+    page,
+  }) => {
+    await goto(page, '/forma?f=AB');
+    await openSection(page, 'Sorteo');
+    const forma = page.locator('[data-row="forma"]');
+    const ritmo = page.locator('[data-row="ritmo"]');
+    const armonia = page.locator('[data-row="armonia"]');
+    const before = (await armonia.getByTestId('mini-degrees').textContent())!;
+
+    await forma.getByRole('button', { name: /^Bloque 2: sección B/ }).click();
+    await expect(ritmo).toHaveAttribute('data-section', 'B');
+    await expect(ritmo).toContainText('B: la de la consigna');
+    await expect(page.getByRole('textbox', { name: 'Letra de la sección B' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Cambiar Ritmo solo en la sección B' }).click();
+    await expect(ritmo).toContainText('Propio de B');
+    expect((await sectionB(page)).rhythm).toBeTruthy();
+
+    await page.getByRole('button', { name: 'Cambiar Armonía solo en la sección B' }).click();
+    await expect(armonia).toContainText('Propio de B');
+    expect((await sectionB(page)).chords?.length).toBeGreaterThan(1);
+    await page.getByRole('button', { name: 'Volver a la armonía de la consigna en la sección B' }).click();
+    await expect(armonia).toContainText('B: la de la consigna');
+    await expect(armonia.getByTestId('mini-degrees')).toHaveText(before);
+
+    // Con toda la canción, las tarjetas vuelven a ser la consigna y B guarda su ritmo.
+    await page.getByRole('button', { name: 'Toda la canción' }).click();
+    await expect(ritmo).not.toHaveAttribute('data-section');
+    await expect(ritmo.getByRole('button', { name: 'Cambiar Ritmo' })).toBeVisible();
+    expect((await sectionB(page)).rhythm).toBeTruthy();
+  });
+});

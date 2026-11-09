@@ -11,6 +11,7 @@ import {
   RHYTHM_POOL,
   TUNING_POOL,
 } from '~/data/pools';
+import type { SectionNames } from '~/data/structures';
 import { GROUPS, STANDARD, TUNINGS, type Tuning } from '~/data/tunings';
 import { rollProgression, type ModeId, type RollOptions } from './harmony';
 import { midiToNote, noteLabel, noteToMidi } from './notes';
@@ -99,9 +100,9 @@ export const rollLyric: Roller<null> = ({ risk, rng }) => {
   };
 };
 
-export const rollForm: Roller<{ blocks: string[] }> = ({ risk, rng }) => {
-  const { label, rule, blocks } = rng.pick(FORM_POOL[risk]);
-  return { value: { blocks }, label, rule, href: `/forma?f=${blocks.join('')}` };
+export const rollForm: Roller<{ blocks: string[]; names?: SectionNames }> = ({ risk, rng }) => {
+  const { label, rule, blocks, names } = rng.pick(FORM_POOL[risk]);
+  return { value: names ? { blocks, names } : { blocks }, label, rule, href: `/forma?f=${blocks.join('')}` };
 };
 
 export const rollCard: Roller<{ id: number }> = ({ risk, rng }) => {

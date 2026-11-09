@@ -4,7 +4,7 @@ import { song } from '~/audio/song';
 import { describeDrone } from '~/core/drone';
 import { isMuted, melodyInBlock, type Lane, type Song, type SongBlock } from '~/core/song';
 import { Fader } from '~/shared/Fader';
-import { publishToConsigna, useBlocks } from '~/shared/consigna';
+import { editBlocks, useBlocks } from '~/shared/consigna';
 import { useProject } from '~/shared/project';
 import type { ChannelId } from '~/shared/settings';
 import { useSong, type ConsignaParts } from '~/shared/song';
@@ -197,7 +197,7 @@ export function Tracks({ selected, onSelect, panel, onPanel, parts }: TracksProp
     const next = [...blocks];
     const [item] = next.splice(dragging.current, 1);
     next.splice(target, 0, item!);
-    publishToConsigna('forma', { blocks: next }, { continuing: dragged.current });
+    editBlocks(next, { continuing: dragged.current });
     onSelect(target);
     dragging.current = target;
     dragged.current = true;

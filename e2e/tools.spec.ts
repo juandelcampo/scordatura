@@ -712,8 +712,12 @@ test.describe('forma', () => {
     await expect(title).toHaveText('BAC');
     await page.getByRole('button', { name: 'Agregar sección D' }).click();
     await expect(title).toHaveText('BACD');
+    // Lo que se suma queda marcado: quitar saca eso.
     await page.getByRole('button', { name: 'Quitar el bloque' }).click();
-    await expect(title).toHaveText('BCD');
+    await expect(title).toHaveText('BAC');
+    await blocks.nth(1).click();
+    await page.getByRole('button', { name: 'Quitar el bloque' }).click();
+    await expect(title).toHaveText('BC');
   });
 
   test('cada sección tiene su consigna, y el compás llega al metrónomo', async ({ page }) => {

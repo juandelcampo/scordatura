@@ -1,24 +1,35 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams, type MetaFunction } from 'react-router';
 import { rhythmToParams, type Meter, type RhythmConfig } from '~/core/rhythm';
 import { createRng, randomSeed } from '~/core/rng';
 import { harmonyHref } from '~/core/chords';
 import { rollForm, rollHarmony, rollLyric, rollRhythm } from '~/core/rollers';
+import { DEFAULT_BARS, MAX_BARS } from '~/core/song';
 import { FORM_EXAMPLES, type FormExample } from '~/data/forms';
 import {
   FORM_FAMILIES,
   SECTION_TERMS,
   SONG_FORMS,
   formLetters,
+  formNames,
   formRule,
   type FormFamilyId,
 } from '~/data/structures';
-import { newConsigna } from '~/core/consigna';
-import { publishToConsigna, useBlocks, useConsigna } from '~/shared/consigna';
+import { newConsigna, type RowOverrides } from '~/core/consigna';
+import {
+  applyForm,
+  blocksOf,
+  editBlocks,
+  publishToConsigna,
+  useConsigna,
+  useForm,
+  type ConsignaForm,
+} from '~/shared/consigna';
+import { FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { isValidBlocks, letterList, useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
 import { useSettings } from '~/shared/settings';
-import { Button, PageTitle, Slab, SlabHead, Tabs } from '~/shared/ui/ui';
+import { Button, Slab, SlabHead, Stepper, Tabs } from '~/shared/ui/ui';
 import styles from './forma.module.css';
 
 export const meta: MetaFunction = () => [
@@ -31,79 +42,71 @@ export const meta: MetaFunction = () => [
 ];
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const MAX_BLOCKS = 24;
 const DEFAULT_METER: Meter = { groups: [1, 1, 1, 1], denom: 4 };
 
-const setBlocks = (blocks: string[], options?: { continuing?: boolean }) =>
-  publishToConsigna('forma', { blocks }, options);
+/** Los acordes de un bloque, sin repetir los que siguen iguales. */
+const chordsOf = (changes: Array<{ name: string }>) =>
+  changes
+    .map((change) => change.name)
+    .filter((name, index, all) => name !== all[index - 1])
+    .join(' ');
 
-function Timeline() {
-  const blocks = useBlocks();
+/** La forma como canción: se oye, se ordena arrastrando y cada bloque dice qué es y qué suena. */
+function Timeline({ selected, onSelect }: { selected: number; onSelect: (index: number) => void }) {
+  const { blocks, names } = useForm();
   const active = useProject((s) => s.active);
   const setActive = useProject((s) => s.setActive);
-  const [selected, setSelected] = useState(0);
-  const dragging = useRef<number | null>(null);
-  const dragged = useRef(false);
+  const player = useSongPlayer();
   const position = Math.min(selected, blocks.length - 1);
+  const used = letterList(blocks);
+  const fresh = LETTERS.find((letter) => !used.includes(letter));
 
+  const select = (index: number) => {
+    onSelect(index);
+    setActive(blocks[index] ?? 'A');
+  };
   const move = (from: number, to: number, continuing = false) => {
     if (to < 0 || to >= blocks.length || from === to) return;
     const next = [...blocks];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item!);
-    setBlocks(next, { continuing });
-    setSelected(to);
+    editBlocks(next, { continuing });
+    onSelect(to);
   };
-
-  const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    if (dragging.current === null) return;
-    const under = document
-      .elementFromPoint(event.clientX, event.clientY)
-      ?.closest<HTMLElement>('[data-block]');
-    const target = under ? Number(under.dataset.block) : null;
-    if (target !== null && target !== dragging.current) {
-      move(dragging.current, target, dragged.current);
-      dragging.current = target;
-      dragged.current = true;
-    }
+  const add = (letter: string) => {
+    if (blocks.length >= MAX_BLOCKS) return;
+    editBlocks([...blocks, letter]);
+    onSelect(blocks.length);
+    setActive(letter);
   };
 
   return (
-    <>
-      <div className={styles.timeline} data-testid="timeline">
-        {blocks.map((letter, index) => (
-          <button
-            key={`${letter}-${index}`}
-            type="button"
-            className={styles.block}
-            data-block={index}
-            data-letter={letter}
-            data-active={letter === active}
-            aria-pressed={index === position}
-            aria-label={`Bloque ${index + 1}: sección ${letter}`}
-            onClick={() => {
-              setSelected(index);
-              setActive(letter);
-            }}
-            onPointerDown={(event) => {
-              dragging.current = index;
-              dragged.current = false;
-              event.currentTarget.setPointerCapture(event.pointerId);
-            }}
-            onPointerMove={onPointerMove}
-            onPointerUp={() => {
-              dragging.current = null;
-            }}
-            onPointerCancel={() => {
-              dragging.current = null;
-            }}
-          >
-            {letter}
-          </button>
-        ))}
+    <section className={styles.song} aria-label="La forma">
+      <div className={styles.songBar}>
+        <Button
+          variant="primary"
+          id="form-play"
+          ariaLabel={player.running ? 'Parar la forma' : 'Oír la forma'}
+          onClick={() => player.toggle(position)}
+        >
+          {player.running ? '■ Parar' : '▶ Oír la forma'}
+        </Button>
+        <span className={styles.songInfo}>
+          {player.plan.bpm} ppm · {player.bars.reduce((sum, bars) => sum + bars, 0)} compases · arranca en el
+          bloque marcado
+        </span>
       </div>
-      <p className={styles.hint}>
-        Arrastrá los bloques para ordenarlos, o usá las flechas con el bloque marcado.
-      </p>
+      <FormStrip
+        blocks={blocks}
+        names={names}
+        bars={player.bars}
+        detail={(index) => chordsOf(player.plan.blocks[index]?.changes ?? [])}
+        selected={position}
+        active={active}
+        onSelect={select}
+        onMove={move}
+      />
       <div className={styles.buttons}>
         <Button
           variant="mini"
@@ -123,25 +126,30 @@ function Timeline() {
           variant="mini"
           ariaLabel="Quitar el bloque"
           onClick={() => {
-            if (blocks.length > 1) setBlocks(blocks.filter((_, index) => index !== position));
+            if (blocks.length > 1) editBlocks(blocks.filter((_, index) => index !== position));
           }}
         >
           Quitar
         </Button>
-        {LETTERS.map((letter) => (
+        <span className={styles.addLabel}>Sumar</span>
+        {used.map((letter) => (
           <Button
             key={letter}
             variant="mini"
             ariaLabel={`Agregar sección ${letter}`}
-            onClick={() => {
-              if (blocks.length < 24) setBlocks([...blocks, letter]);
-            }}
+            onClick={() => add(letter)}
           >
             + {letter}
           </Button>
         ))}
+        {fresh && (
+          <Button variant="mini" ariaLabel={`Agregar sección ${fresh}`} onClick={() => add(fresh)}>
+            + {fresh} nueva
+          </Button>
+        )}
+        <span className={styles.hint}>Arrastrá los bloques para ordenarlos.</span>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -149,7 +157,10 @@ function SectionPanel() {
   const active = useProject((s) => s.active);
   const section = useProject((s) => s.sections[s.active]);
   const updateSection = useProject((s) => s.updateSection);
+  const { names } = useForm();
   const risk = useSettings((s) => s.risk);
+  const bars = section?.bars ?? DEFAULT_BARS;
+  const setBars = (next: number) => updateSection(active, { bars: Math.min(MAX_BARS, Math.max(1, next)) });
 
   const rollSection = () => {
     const input = () => ({ risk, rng: createRng(randomSeed()) });
@@ -162,12 +173,23 @@ function SectionPanel() {
   const written = section?.text?.split('\n').find((line) => line.trim());
 
   return (
-    <Slab>
-      <SlabHead title={`Sección ${active}`}>
-        <Button onClick={rollSection} id="roll-section">
+    <section className={styles.section} aria-label={`Sección ${active}`}>
+      <div className={styles.sectionHead}>
+        <h2>
+          Sección {active}
+          {names[active] && <span> · {names[active]}</span>}
+        </h2>
+        <Stepper
+          label="compases"
+          value={`${bars} cc`}
+          onDown={() => setBars(bars - 1)}
+          onUp={() => setBars(bars + 1)}
+        />
+        <Button variant="mini" onClick={rollSection} id="roll-section">
           Sortear esta sección
         </Button>
-      </SlabHead>
+        <RecordButton />
+      </div>
       <dl className={styles.facts}>
         <div>
           <dt>Armonía</dt>
@@ -175,7 +197,7 @@ function SectionPanel() {
             {section?.chords ? (
               <Link to={harmonyHref(section.chords, section.chordBeats)}>{section.chords.join(' – ')}</Link>
             ) : (
-              <Link to="/armonia">Elegir en Armonía</Link>
+              <Link to="/armonia">La de la consigna · elegir otra</Link>
             )}
           </dd>
         </div>
@@ -190,7 +212,7 @@ function SectionPanel() {
                 , {section.rhythm.bpm} ppm
               </Link>
             ) : (
-              <Link to="/ritmo">Elegir en Ritmo</Link>
+              <Link to="/ritmo">El de la consigna · elegir otro</Link>
             )}
           </dd>
         </div>
@@ -207,10 +229,7 @@ function SectionPanel() {
           </dd>
         </div>
       </dl>
-      <div className={styles.record}>
-        <RecordButton />
-      </div>
-    </Slab>
+    </section>
   );
 }
 
@@ -322,7 +341,7 @@ function ExamplePlayer({ example }: { example: FormExample }) {
   );
 }
 
-function Examples() {
+function Examples({ onUse }: { onUse: (value: RowOverrides['forma']) => void }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
     <Slab>
@@ -353,7 +372,9 @@ function Examples() {
                   <Button
                     variant="mini"
                     ariaLabel={`Usar la forma de ${example.song}`}
-                    onClick={() => setBlocks(example.blocks)}
+                    onClick={() =>
+                      onUse({ blocks: example.blocks, rule: `Como «${example.song}». ${example.rule}` })
+                    }
                   >
                     Usar forma
                   </Button>
@@ -368,7 +389,7 @@ function Examples() {
   );
 }
 
-function Library({ onUse }: { onUse: (blocks: string[], rule: string) => void }) {
+function Library({ onUse }: { onUse: (value: RowOverrides['forma']) => void }) {
   const [family, setFamily] = useState<FormFamilyId>('pop');
   const current = FORM_FAMILIES.find((item) => item.value === family)!;
   return (
@@ -390,7 +411,9 @@ function Library({ onUse }: { onUse: (blocks: string[], rule: string) => void })
                 <Button
                   variant="mini"
                   ariaLabel={`Usar la forma ${form.name}`}
-                  onClick={() => onUse(letters, formRule(form))}
+                  onClick={() =>
+                    onUse({ blocks: letters, names: formNames(form.sections), rule: formRule(form) })
+                  }
                 >
                   Usar forma
                 </Button>
@@ -437,10 +460,11 @@ function Vocabulary() {
 }
 
 export default function FormaRoute() {
-  const blocks = useBlocks();
+  const form = useForm();
+  const { blocks } = form;
   const sections = useProject((s) => s.sections);
   const risk = useSettings((s) => s.risk);
-  const [rule, setRule] = useState('Armala a mano o sorteá una forma.');
+  const [selected, setSelected] = useState(0);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const loaded = useRef(false);
@@ -449,26 +473,34 @@ export default function FormaRoute() {
     if (loaded.current) return;
     loaded.current = true;
     const shared = params.get('f')?.split('');
-    if (isValidBlocks(shared)) setBlocks(shared);
-    else if (!useConsigna.getState().started) useConsigna.getState().load(newConsigna(risk));
+    const store = useConsigna.getState();
+    // Abierta desde la consigna, el link trae la misma forma: no se pisan su regla ni sus nombres.
+    if (isValidBlocks(shared)) {
+      if (!store.started || shared.join('') !== blocksOf(store.consigna).join('')) {
+        publishToConsigna('forma', { blocks: shared });
+      }
+    } else if (!store.started) store.load(newConsigna(risk));
   }, [params, risk]);
 
-  const [undo, setUndo] = useState<Array<{ blocks: string[]; rule: string }>>([]);
-  const apply = (next: string[], nextRule: string) => {
-    setUndo((stack) => [...stack, { blocks, rule }].slice(-30));
-    setBlocks(next);
-    setRule(nextRule);
+  const [undo, setUndo] = useState<ConsignaForm[]>([]);
+  const apply = (next: RowOverrides['forma']) => {
+    setUndo((stack) => [...stack, form].slice(-30));
+    applyForm(next);
+    setSelected(0);
   };
   const roll = () => {
     const rolled = rollForm({ risk, rng: createRng(randomSeed()) });
-    apply(rolled.value.blocks, rolled.rule);
+    apply({ ...rolled.value, rule: rolled.rule });
   };
   const goBack = () => {
     const previous = undo[undo.length - 1];
     if (!previous) return;
     setUndo(undo.slice(0, -1));
-    setBlocks(previous.blocks);
-    setRule(previous.rule);
+    applyForm({
+      blocks: previous.blocks,
+      rule: previous.rule,
+      ...(Object.keys(previous.names).length ? { names: previous.names } : {}),
+    });
   };
 
   /** Lleva el compás de cada sección al metrónomo, en el orden de la forma. */
@@ -483,34 +515,33 @@ export default function FormaRoute() {
   };
 
   return (
-    <div>
-      <Slab>
-        <PageTitle
-          eyebrow={`${letterList(blocks).length} secciones, ${blocks.length} bloques`}
-          title={blocks.join('')}
-        >
-          <p>
-            <span data-testid="form-rule">{rule}</span>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.headerText}>
+          <p className={styles.eyebrow}>
+            Consigna de forma · {letterList(blocks).length} secciones, {blocks.length} bloques
           </p>
-        </PageTitle>
-        <div className={styles.actions}>
-          <Button variant="primary" onClick={roll} id="roll-form">
-            Sortear forma
+          <h1 className={styles.title}>{blocks.join('')}</h1>
+          <p className={styles.rule} title={form.rule}>
+            <span data-testid="form-rule">{form.rule}</span>
+          </p>
+        </div>
+        <div className={styles.headerActions}>
+          <Button variant="mini" onClick={playMeters} id="play-meters">
+            Compases al metrónomo
           </Button>
-          <Button onClick={goBack} id="undo-form" disabled={undo.length === 0}>
+          <Button variant="mini" onClick={goBack} id="undo-form" disabled={undo.length === 0}>
             ↩ Volver
           </Button>
-          <Button onClick={playMeters} id="play-meters">
-            Llevar compases al metrónomo
+          <Button onClick={roll} id="roll-form">
+            Sortear otra
           </Button>
         </div>
-      </Slab>
-      <Slab>
-        <Timeline />
-      </Slab>
+      </header>
+      <Timeline selected={selected} onSelect={setSelected} />
       <SectionPanel />
       <Library onUse={apply} />
-      <Examples />
+      <Examples onUse={apply} />
       <Vocabulary />
     </div>
   );

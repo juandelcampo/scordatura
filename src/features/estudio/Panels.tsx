@@ -20,7 +20,7 @@ import { rollHarmony, rollLyric, rollRhythm } from '~/core/rollers';
 import { DEFAULT_BARS, MAX_BARS } from '~/core/song';
 import { metricCount, wordsIn } from '~/core/spanish';
 import { DRUM_PRESETS } from '~/data/drums';
-import { publishToConsigna, useBlocks } from '~/shared/consigna';
+import { editBlocks, publishToConsigna, useBlocks } from '~/shared/consigna';
 import { PianoRoll } from '~/shared/PianoRoll';
 import { useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
@@ -81,7 +81,7 @@ export function FormPanel({
   const repeats = blocks.filter((block) => block === letter).length;
 
   const change = (next: string[], position: number) => {
-    publishToConsigna('forma', { blocks: next });
+    editBlocks(next);
     onSelect(position);
   };
   const move = (to: number) => {

@@ -312,6 +312,19 @@
   color: var(--on-accent);
   font-size: 11px;
 }
+/* Con una sección elegida en la forma, ritmo y armonía hablan de ella: se marcan arriba. */
+.row[data-section] {
+  box-shadow: inset 0 6px 0 var(--accent);
+}
+.sectionTag {
+  padding: 0 5px;
+  border: 2px solid var(--accent);
+  font-size: 11px;
+}
+.sectionTag[data-own='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
 .rowActions {
   display: flex;
   flex: none;
@@ -520,27 +533,6 @@
   font-size: 16px;
   resize: none;
 }
-.blocks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.blocks span {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--ink);
-  font: 900 18px/1 var(--heavy);
-}
-.blocks span[data-letter='A'] {
-  background: var(--ink);
-  color: var(--paper);
-}
-.blocks span[data-letter='B'] {
-  background: var(--soft);
-}
-
 /* El botón de nueva consigna queda siempre a mano, pegado abajo. */
 .rollBar {
   position: sticky;

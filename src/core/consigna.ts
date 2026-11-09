@@ -30,6 +30,7 @@ import {
   rollTuning,
 } from './rollers';
 import { openChordName } from './tuning';
+import type { SectionNames } from '~/data/structures';
 
 export const ROWS = [
   { id: 'afinacion', name: 'Afinación', roll: rollTuning },
@@ -51,7 +52,8 @@ export interface RowOverrides {
   armonia: { chords: string[]; tonic?: number; mode?: ModeId; beats?: number[] };
   melodia: { label: string; rule: string; notes?: Note[] };
   letra: { label: string; rule: string };
-  forma: { blocks: string[] };
+  /** La regla y los nombres viajan con la forma; si se edita a mano, la regla se describe sola. */
+  forma: { blocks: string[]; rule?: string; names?: SectionNames };
   carta: { text: string; id?: number; breaks?: string };
   drone: DroneConfig;
 }
@@ -128,6 +130,16 @@ export function applyOverride<K extends RowId>(consigna: Consigna, id: K, value:
   };
 }
 
+/** Lo que se puede decir con certeza de una forma armada a mano: cuántas partes tiene y qué vuelve. */
+export function handFormRule(blocks: readonly string[]): string {
+  const sections = [...new Set(blocks)];
+  const back = sections.filter((letter) => blocks.indexOf(letter) !== blocks.lastIndexOf(letter));
+  const count = `${sections.length} ${sections.length === 1 ? 'sección' : 'secciones'} en ${blocks.length} ${blocks.length === 1 ? 'bloque' : 'bloques'}`;
+  const listed = back.length > 1 ? `${back.slice(0, -1).join(', ')} y ${back.at(-1)}` : back[0];
+  const returns = back.length === 0 ? 'nada vuelve' : `${back.length === 1 ? 'vuelve' : 'vuelven'} ${listed}`;
+  return `Armada a mano: ${count}; ${returns}.`;
+}
+
 function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
   switch (id) {
     case 'afinacion': {
@@ -166,7 +178,7 @@ function resolveOverride(id: RowId, override: RowOverrides[RowId]): Rolled {
       return {
         value,
         label: value.blocks.join(' '),
-        rule: '',
+        rule: value.rule ?? handFormRule(value.blocks),
         href: `/forma?f=${value.blocks.join('')}`,
       };
     }
@@ -299,7 +311,21 @@ function sanitizeOverride(id: RowId, value: unknown): RowOverrides[RowId] | null
         blocks.length > 0 &&
         blocks.length <= 24 &&
         blocks.every((block) => typeof block === 'string' && /^[A-H]$/.test(block));
-      return valid ? { blocks: blocks as string[] } : null;
+      if (!valid) return null;
+      const rule = text('rule');
+      const names: SectionNames = {};
+      if (raw.names && typeof raw.names === 'object') {
+        for (const [letter, name] of Object.entries(raw.names as Record<string, unknown>)) {
+          if (/^[A-H]$/.test(letter) && typeof name === 'string' && name.trim()) {
+            names[letter] = name.trim().slice(0, 40);
+          }
+        }
+      }
+      return {
+        blocks: blocks as string[],
+        ...(rule ? { rule } : {}),
+        ...(Object.keys(names).length ? { names } : {}),
+      };
     }
     case 'carta': {
       const known = typeof raw.id === 'number' ? CARDS.find((card) => card.id === raw.id) : undefined;

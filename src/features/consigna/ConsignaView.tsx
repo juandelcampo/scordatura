@@ -16,10 +16,13 @@ import {
 } from '~/core/consigna';
 import { degreeOf } from '~/core/chords';
 import type { DroneConfig } from '~/core/drone';
-import type { RhythmConfig } from '~/core/rhythm';
+import { describeRhythm, type RhythmConfig } from '~/core/rhythm';
+import { createRng, randomSeed } from '~/core/rng';
 import { RISK_NAMES } from '~/core/roll';
+import { rollHarmonyWith, rollRhythm } from '~/core/rollers';
 import { keyOfProgression, transposeTo } from '~/core/variations';
-import { publishToConsigna, useConsigna } from '~/shared/consigna';
+import { publishToConsigna, useConsigna, useForm } from '~/shared/consigna';
+import { useProject } from '~/shared/project';
 import { RiskPicker } from '~/shared/RiskPicker';
 import { ExportMidiButton } from '~/shared/ExportMidiButton';
 import { Mixer } from '~/shared/Fader';
@@ -136,26 +139,79 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
 
   const valueOf = <T,>(id: RowId) => results[rowIndex(id)]!.value as T;
   const tuningNotes = valueOf<{ notes: string[] }>('afinacion').notes;
-  const harmony = valueOf<RowOverrides['armonia']>('armonia');
+  const base = valueOf<RowOverrides['armonia']>('armonia');
+  const baseRhythm = valueOf<RhythmConfig>('ritmo');
   const melody = valueOf<RowOverrides['melodia'] | null>('melodia');
-  const harmonyKey = keyOfProgression(harmony.chords, harmony.tonic, harmony.mode);
+  const baseKey = keyOfProgression(base.chords, base.tonic, base.mode);
+
+  // Tocar un bloque de la forma entra a esa sección: ritmo y armonía muestran lo suyo, y cambiarlos
+  // sortea solo para ella. Sin bloque elegido, las tarjetas son la consigna de toda la canción.
+  const { blocks } = useForm();
+  const [chosen, setFocus] = useState<number | null>(null);
+  // Si la forma se acorta, el bloque elegido puede dejar de existir: se vuelve a toda la canción.
+  const focus = chosen !== null && chosen < blocks.length ? chosen : null;
+  const letter = focus !== null ? (blocks[focus] ?? null) : null;
+  const section = useProject((s) => (letter ? s.sections[letter] : undefined));
+  const updateSection = useProject((s) => s.updateSection);
+  const setActive = useProject((s) => s.setActive);
+  const chooseBlock = (index: number | null) => {
+    const next = index === focus ? null : index;
+    setFocus(next);
+    if (next !== null) setActive(blocks[next] ?? 'A');
+  };
+
+  const ownChords = letter ? section?.chords : undefined;
+  const ownRhythm = letter ? section?.rhythm : undefined;
+  const harmony: RowOverrides['armonia'] = ownChords
+    ? { chords: ownChords, ...(section?.chordBeats ? { beats: section.chordBeats } : {}) }
+    : base;
+  const rhythm = ownRhythm ?? baseRhythm;
+  const harmonyKey = ownChords ? keyOfProgression(ownChords) : baseKey;
   const degrees = harmony.chords.map((name) => degreeOf(name, harmonyKey.tonic) ?? '?').join(' – ');
 
   // Otra tónica es la misma progresión más arriba o más abajo: los grados quedan, y queda trabada.
   const setTonic = (tonic: number) => {
     if (tonic === harmonyKey.tonic) return;
+    if (letter && ownChords) {
+      updateSection(letter, {
+        chords: transposeTo(ownChords, harmonyKey, tonic),
+        ...(section?.chordBeats ? { chordBeats: section.chordBeats } : {}),
+      });
+      return;
+    }
     publishToConsigna('armonia', {
-      chords: transposeTo(harmony.chords, harmonyKey, tonic),
+      chords: transposeTo(base.chords, baseKey, tonic),
       tonic,
-      mode: harmonyKey.mode,
-      ...(harmony.beats ? { beats: harmony.beats } : {}),
+      mode: baseKey.mode,
+      ...(base.beats ? { beats: base.beats } : {}),
     });
   };
+
+  /** Lo de una sección sale en el tono y el tempo de la consigna, para que siga siendo la misma canción. */
+  const rollForSection = (id: 'ritmo' | 'armonia') => {
+    if (!letter) return;
+    const input = { risk, rng: createRng(randomSeed()) };
+    if (id === 'ritmo') {
+      updateSection(letter, { rhythm: { ...rollRhythm(input).value, bpm: baseRhythm.bpm } });
+    } else {
+      updateSection(letter, { chords: rollHarmonyWith(input, { tonic: baseKey.tonic }).value.chords });
+    }
+  };
+  const backToConsigna = (id: 'ritmo' | 'armonia') => {
+    if (!letter) return;
+    updateSection(
+      letter,
+      id === 'ritmo' ? { rhythm: undefined } : { chords: undefined, chordBeats: undefined },
+    );
+  };
+  const sectionRow = (id: RowId): id is 'ritmo' | 'armonia' =>
+    !!letter && (id === 'ritmo' || id === 'armonia');
+  const ownOf = (id: 'ritmo' | 'armonia') => (id === 'ritmo' ? !!ownRhythm : !!ownChords);
 
   const mini = (id: RowId, index: number): ReactNode => {
     switch (id) {
       case 'ritmo':
-        return <MiniRhythm config={valueOf<RhythmConfig>('ritmo')} />;
+        return <MiniRhythm config={rhythm} />;
       case 'armonia':
         return (
           <MiniHarmony
@@ -176,7 +232,7 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
       case 'letra':
         return <MiniLyric />;
       case 'forma':
-        return <MiniForm blocks={valueOf<{ blocks: string[] }>('forma').blocks} />;
+        return <MiniForm selected={focus} onSelect={chooseBlock} />;
       case 'drone':
         return <MiniDrone config={valueOf<DroneConfig>('drone')} />;
       default:
@@ -192,6 +248,38 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     const row = ROWS[index]!;
     const state = consigna.rows[index]!;
     const result = results[index]!;
+    if (sectionRow(row.id)) {
+      const id = row.id;
+      const own = ownOf(id);
+      return (
+        <div className={styles.rowHead}>
+          <h2 className={styles.rowName}>
+            {result.href ? <OpenTool to={result.href} name={row.name} /> : row.name}
+            <span className={styles.sectionTag} data-own={own}>
+              {own ? `Propio de ${letter}` : `${letter}: la de la consigna`}
+            </span>
+          </h2>
+          <div className={styles.rowActions} data-print="hide">
+            {own && (
+              <Button
+                variant="mini"
+                ariaLabel={`Volver a la ${row.name.toLowerCase()} de la consigna en la sección ${letter}`}
+                onClick={() => backToConsigna(id)}
+              >
+                Consigna
+              </Button>
+            )}
+            <Button
+              variant="mini"
+              ariaLabel={`Cambiar ${row.name} solo en la sección ${letter}`}
+              onClick={() => rollForSection(id)}
+            >
+              {own ? 'Cambiar' : `Otra para ${letter}`}
+            </Button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={styles.rowHead}>
         <h2 className={styles.rowName}>
@@ -225,17 +313,20 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     const state = consigna.rows[index]!;
     const result = results[index]!;
     const foreign = state.risk !== consigna.risk && !state.override;
-    const rule =
-      `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
     const isHarmony = row.id === 'armonia';
+    // Lo propio de la sección elegida reemplaza a la consigna en esta tarjeta.
+    const ownRhythmText = row.id === 'ritmo' && ownRhythm ? describeRhythm(ownRhythm) : null;
+    const ownHarmony = isHarmony && !!ownChords;
+    const label = ownRhythmText?.label ?? result.label;
+    const rule = ownRhythmText
+      ? ownRhythmText.rule
+      : ownHarmony
+        ? `${ownChords!.join(' – ')}. Solo en la sección ${letter}: las demás siguen con la de la consigna.`
+        : `${result.rule}${foreign ? ` (Trabada en nivel ${RISK_NAMES[state.risk].toLowerCase()}.)` : ''}`.trim();
     return (
       <div className={styles.rowBody}>
-        <p
-          className={styles.rowValue}
-          title={result.label}
-          data-testid={isHarmony ? 'mini-degrees' : undefined}
-        >
-          {isHarmony ? degrees : result.label}
+        <p className={styles.rowValue} title={label} data-testid={isHarmony ? 'mini-degrees' : undefined}>
+          {isHarmony ? degrees : label}
         </p>
         {rule && (
           <p className={styles.rowRule} title={rule}>
@@ -325,8 +416,9 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
             <li
               key={row.id}
               className={styles.row}
-              data-locked={state.locked}
+              data-locked={sectionRow(row.id) ? false : state.locked}
               data-chosen={!!state.override}
+              data-section={sectionRow(row.id) ? letter : undefined}
               data-row={row.id}
             >
               {head(index)}

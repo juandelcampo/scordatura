@@ -16,7 +16,7 @@ Una sesión tiene un solo camino: sortear la consigna, trabar lo que sirve, toca
 | Armonía  | Herramienta | Progresiones con su regla a la vista, un editor para sumar, sacar y variar acordes, y cómo tocarlas en cada afinación.                                                  |
 | Melodía  | Herramienta | Contornos, restricciones, motivos, notas desde texto, mapa de tensiones, y transcribir lo que cantás.                                                                   |
 | Letras   | Herramienta | Sílabas métricas, esquemas de rima, prosodia, diccionario de rimas, material, cut-up y escritura con reloj.                                                             |
-| Forma    | Herramienta | Bloques que se arrastran, sección por sección, y ejemplos con video donde marcás los minutos.                                                                           |
+| Forma    | Herramienta | La forma como tira que se oye: cada bloque mide sus compases y dice qué es. Biblioteca de formas, ejemplos con video y vocabulario.                                     |
 | Acerca   | Aparte      | Explica la idea en veinte segundos (`/acerca`).                                                                                                                         |
 
 Las herramientas son un desvío para ir más hondo en una fila: se abren desde esa fila o desde `/herramientas`, y lo que se elige ahí vuelve a la consigna.
@@ -74,7 +74,7 @@ ESLint hace cumplir las tres primeras, y `npm run lint` falla si se rompen.
 
 ### El proyecto
 
-La forma es el esqueleto. Cada letra (A, B, C…) guarda su progresión, su ritmo, su consigna y su letra. Armonía, Ritmo y Letras guardan en la sección elegida, Melodía lee sus acordes, y Forma lleva los compases de cada sección al metrónomo. Una idea grabada queda pegada a la consigna y a la sección donde nació.
+La forma es el esqueleto, y vive en la fila de la consigna con su regla y lo que es cada letra (A estrofa, B estribillo). Cada letra guarda en el proyecto su progresión, su ritmo, su consigna y su letra. La consigna y Forma la muestran con la misma tira (`shared/FormStrip.tsx`), que se oye con el motor del Estudio. En la consigna, tocar un bloque entra a esa sección: Ritmo y Armonía muestran lo suyo, y "Cambiar" sortea solo para ella, en el tono y el tempo de la consigna. Armonía, Ritmo y Letras guardan en la sección elegida, Melodía lee sus acordes, y Forma lleva los compases de cada sección al metrónomo. Una idea grabada queda pegada a la consigna y a la sección donde nació.
 
 En el Estudio, cada sección además guarda cuántos compases dura y si lleva drone, y el proyecto guarda el tempo y la mezcla. Una sección sin armonía o ritmo propio usa los de la consigna, y cualquier ritmo se ve y se edita como batería. `core/song.ts` calcula lo que suena en cada momento, y `audio/song.ts` lo programa.
 

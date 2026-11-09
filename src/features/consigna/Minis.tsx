@@ -15,6 +15,8 @@ import type { RhythmConfig } from '~/core/rhythm';
 import { createRng } from '~/core/rng';
 import type { Key } from '~/core/variations';
 import { metricCount, wordsIn } from '~/core/spanish';
+import { useForm } from '~/shared/consigna';
+import { FormLegend, FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { PianoRoll } from '~/shared/PianoRoll';
 import { useProject } from '~/shared/project';
 import { RhythmGrid } from '~/shared/RhythmGrid';
@@ -375,16 +377,50 @@ export function MiniLyric() {
   );
 }
 
-export function MiniForm({ blocks }: { blocks: string[] }) {
+/**
+ * La forma se oye entera, con lo que tiene cada sección: el mismo tema que suena en el Estudio.
+ * Tocar un bloque entra a esa sección, y la consigna muestra lo suyo.
+ */
+export function MiniForm({
+  selected,
+  onSelect,
+}: {
+  selected: number | null;
+  onSelect: (index: number | null) => void;
+}) {
+  const { blocks, names } = useForm();
+  const player = useSongPlayer();
+  const letter = selected !== null ? blocks[selected] : undefined;
   return (
     <div className={styles.mini}>
-      <div className={styles.blocks}>
-        {blocks.map((letter, index) => (
-          <span key={index} data-letter={letter}>
-            {letter}
-          </span>
-        ))}
-      </div>
+      <FormStrip
+        blocks={blocks}
+        names={names}
+        bars={player.bars}
+        size="mini"
+        selected={selected ?? undefined}
+        active={letter}
+        onSelect={onSelect}
+      />
+      <Foot>
+        <Button
+          variant="mini"
+          id="mini-form-play"
+          ariaLabel={player.running ? 'Parar la forma' : 'Oír la forma'}
+          onClick={() => player.toggle(selected ?? 0)}
+        >
+          {player.running ? '■ Parar' : '▶ Oír'}
+        </Button>
+        {letter ? (
+          <Button variant="mini" id="whole-song" onClick={() => onSelect(null)}>
+            Toda la canción
+          </Button>
+        ) : Object.keys(names).length > 0 ? (
+          <FormLegend blocks={blocks} names={names} />
+        ) : (
+          <span className={styles.caption}>Tocá un bloque para ver y cambiar solo esa sección.</span>
+        )}
+      </Foot>
     </div>
   );
 }

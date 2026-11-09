@@ -21,6 +21,7 @@ import {
 } from '~/core/consigna';
 import { canonical } from '~/core/canonical';
 import { followKey } from '~/core/drone';
+import type { SectionNames } from '~/data/structures';
 import { useProject } from './project';
 import { useSettings } from './settings';
 
@@ -128,15 +129,46 @@ export function publishToConsigna<K extends RowId>(
   else store.change(next);
 }
 
+export interface ConsignaForm {
+  blocks: string[];
+  /** Qué es cada letra, si se sabe: A es la estrofa, B el estribillo. */
+  names: SectionNames;
+  rule: string;
+}
+
 /** La forma es la de la consigna: la que dice su fila es la que suena. */
-export function blocksOf(consigna: Consigna): string[] {
+export function formOf(consigna: Consigna): ConsignaForm {
   const index = rowIndex('forma');
-  return (resolveRow(index, consigna.rows[index]!).value as RowOverrides['forma']).blocks;
+  const { value, rule } = resolveRow(index, consigna.rows[index]!);
+  const { blocks, names = {} } = value as RowOverrides['forma'];
+  return { blocks, names, rule };
+}
+
+export const blocksOf = (consigna: Consigna): string[] => formOf(consigna).blocks;
+
+export function useForm(): ConsignaForm {
+  const consigna = useConsigna((s) => s.consigna);
+  return useMemo(() => formOf(consigna), [consigna]);
 }
 
 export function useBlocks(): string[] {
-  const consigna = useConsigna((s) => s.consigna);
-  return useMemo(() => blocksOf(consigna), [consigna]);
+  return useForm().blocks;
+}
+
+/**
+ * Mover, sumar o quitar bloques a mano. Los nombres de las secciones que quedan se conservan; la
+ * regla de la forma de origen ya no vale, así que se describe sola.
+ */
+export function editBlocks(blocks: string[], options?: { continuing?: boolean }): void {
+  const { names } = formOf(useConsigna.getState().consigna);
+  const kept: SectionNames = {};
+  for (const letter of new Set(blocks)) if (names[letter]) kept[letter] = names[letter];
+  publishToConsigna('forma', { blocks, ...(Object.keys(kept).length ? { names: kept } : {}) }, options);
+}
+
+/** Usar una forma entera, con su regla y lo que es cada sección. */
+export function applyForm(value: RowOverrides['forma']): void {
+  publishToConsigna('forma', value);
 }
 
 /** La sección en la que se está tiene que existir en la forma, aunque la forma cambie. */

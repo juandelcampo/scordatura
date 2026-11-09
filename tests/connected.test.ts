@@ -6,6 +6,7 @@ import {
   consignaNumber,
   decodeConsigna,
   encodeConsigna,
+  handFormRule,
   newConsigna,
   rerollAll,
   rerollRow,
@@ -124,6 +125,39 @@ describe('consigna con elecciones propias', () => {
     const decoded = decodeConsigna(code)!;
     expect(decoded).toEqual(consigna);
     expect(consignaNumber(decoded)).toBe(consignaNumber(consigna));
+  });
+
+  it('la forma elegida conserva su regla y sus nombres, y la armada a mano se describe sola', () => {
+    const base = newConsigna(1, counter());
+    const index = rowIndex('forma');
+    const chosen = applyOverride(base, 'forma', {
+      blocks: ['A', 'B', 'A'],
+      rule: 'Estrofa y estribillo. Probala corta.',
+      names: { A: 'Estrofa', B: 'Estribillo' },
+    });
+    const decoded = decodeConsigna(encodeConsigna(chosen))!;
+    expect(decoded).toEqual(chosen);
+    expect(resolveRow(index, decoded.rows[index]!).rule).toBe('Estrofa y estribillo. Probala corta.');
+
+    const byHand = applyOverride(base, 'forma', { blocks: ['A', 'B', 'A', 'C'] });
+    expect(resolveRow(index, byHand.rows[index]!).rule).toBe(handFormRule(['A', 'B', 'A', 'C']));
+    expect(handFormRule(['A', 'B', 'A', 'C'])).toBe('Armada a mano: 3 secciones en 4 bloques; vuelve A.');
+    expect(handFormRule(['A', 'B', 'A', 'B', 'C'])).toBe(
+      'Armada a mano: 3 secciones en 5 bloques; vuelven A y B.',
+    );
+    expect(handFormRule(['A'])).toBe('Armada a mano: 1 sección en 1 bloque; nada vuelve.');
+  });
+
+  it('de un link de forma solo entran nombres de letras válidas', () => {
+    const b64 = (value: unknown) =>
+      btoa(JSON.stringify(value)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+    const rows = 'a.b.c.d.e.f.g.h'.split('.');
+    rows[rowIndex('forma')] += `!@${b64({ blocks: ['A', 'B'], names: { A: ' Estrofa ', Z: 'x', B: 3 } })}`;
+    const decoded = decodeConsigna(['1', ...rows].join('.'))!;
+    expect(decoded.rows[rowIndex('forma')]!.override).toEqual({
+      blocks: ['A', 'B'],
+      names: { A: 'Estrofa' },
+    });
   });
 
   it('el número cambia cuando cambia lo elegido', () => {

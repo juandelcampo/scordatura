@@ -1,14 +1,94 @@
-.actions {
+.page {
+  min-width: 0;
+}
+
+/* ——— Cabecera: la consigna de forma en dos renglones, como en Letras. ——— */
+.header {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px var(--gutter);
+  border-bottom: var(--rule);
 }
-.timeline {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+.headerText {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
+.headerActions > button {
+  white-space: nowrap;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+/* Con .header delante, para ganarle al tamaño que el modal les da a los títulos. */
+.header .title {
+  margin: 1px 0 2px;
+  font: 900 clamp(19px, 2.6cqi, 26px)/1.15 var(--heavy);
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+.rule {
+  font-size: 13px;
+}
+
+/* ——— La tira: la canción entera, que se oye y se ordena. ——— */
+.song {
+  padding: 12px var(--gutter);
+  border-bottom: var(--rule);
+}
+.songBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+.songInfo {
+  color: var(--muted);
+  font-size: 13px;
+}
+.addLabel {
+  align-self: center;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.buttons .hint {
+  align-self: center;
+  margin: 0 0 0 auto;
+}
+
+/* ——— La sección marcada ——— */
+.section {
+  padding: 12px var(--gutter);
+  border-bottom: var(--rule);
+}
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.sectionHead h2 {
+  margin-right: auto;
+  font: 900 19px/1.15 var(--heavy);
+  text-transform: uppercase;
+}
+.sectionHead h2 span {
+  color: var(--muted);
+}
+
+/* Los bloques de los ejemplos, para marcar los minutos. */
 .block {
   display: grid;
   place-items: center;
@@ -123,9 +203,6 @@
   .facts > div:nth-child(even) {
     border-left: var(--rule);
   }
-}
-.record {
-  margin-top: 12px;
 }
 .examples {
   margin: 8px 0 0;

@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { CARDS } from '~/data/cards';
 import { FORM_EXAMPLES } from '~/data/forms';
-import { FORM_FAMILIES, SECTION_TERMS, SONG_FORMS, formLetters, formRule } from '~/data/structures';
+import {
+  FORM_FAMILIES,
+  SECTION_TERMS,
+  SONG_FORMS,
+  formLetters,
+  formNames,
+  formRule,
+} from '~/data/structures';
 import { isValidBlocks } from '~/shared/project';
 import { FORM_POOL, TUNING_POOL } from '~/data/pools';
 import { GROUPS, SOURCES, TUNINGS } from '~/data/tunings';
@@ -119,6 +126,10 @@ describe('biblioteca de formas', () => {
         form.id,
       ).toBe(true);
     }
+    // Lo sorteado de la biblioteca dice qué es cada sección.
+    const verse = pooled.find((entry) => entry.rule === formRule(SONG_FORMS[0]!))!;
+    expect(verse.names).toEqual(formNames(SONG_FORMS[0]!.sections));
+    expect(verse.names!.A).toBe(SONG_FORMS[0]!.sections[0]);
     const kpop = SONG_FORMS.find((form) => form.id === 'kpop')!;
     expect(FORM_POOL[1].some((entry) => entry.rule === formRule(kpop))).toBe(true);
     expect(FORM_POOL[0].some((entry) => entry.rule === formRule(kpop))).toBe(false);
