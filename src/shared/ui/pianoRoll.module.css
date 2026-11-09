@@ -15,6 +15,17 @@
   background: var(--ink);
   outline: 1px solid var(--paper);
 }
+.roll[data-editable] .note {
+  cursor: ns-resize;
+  touch-action: none;
+  min-height: 10px;
+}
+.roll[data-editable] .note:hover,
+.roll[data-editable] .note:focus-visible {
+  background: var(--accent);
+  outline: 2px solid var(--ink);
+  z-index: 1;
+}
 .empty {
   margin-top: 6px;
   color: var(--muted);

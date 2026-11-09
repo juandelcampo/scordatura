@@ -129,6 +129,8 @@
   }
 }
 .step {
+  /* Se pinta arrastrando a lo ancho; a lo alto, la página sigue desplazándose. */
+  touch-action: pan-y;
   min-height: var(--touch-small);
   min-width: 0;
   padding: 0;

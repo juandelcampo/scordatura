@@ -1,7 +1,7 @@
 // Letras: una sola pantalla. A la izquierda la letra, con sus sílabas y su rima en el margen y los
 // avisos debajo; a la derecha, las herramientas (rimas, acentos, material y cut-up), que escriben en
 // la letra en vez de en un texto aparte. En escritorio entra entera: cada panel se desplaza adentro.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import type { MetaFunction } from 'react-router';
 import { resolveRow, rowIndex } from '~/core/consigna';
 import {
@@ -33,6 +33,8 @@ import { publishToConsigna, useConsigna } from '~/shared/consigna';
 import { useProject } from '~/shared/project';
 import { SectionPicker } from '~/shared/SectionPicker';
 import { useSettings } from '~/shared/settings';
+import { contextMenu } from '~/shared/ContextMenu';
+import { draggable, dropTarget, insertionIndex, reorderTo } from '~/shared/drag';
 import { Button, Segmented } from '~/shared/ui/ui';
 import styles from './letras.module.css';
 
@@ -54,6 +56,29 @@ function useLyricRow(): { label: string; rule: string } {
     return { label, rule };
   }, [consigna]);
 }
+
+/**
+ * Una palabra o un pedazo se puede arrastrar hasta la letra: el navegador la pone donde se suelta.
+ * Es el arrastre nativo, el que entiende un campo de texto.
+ */
+const wordDrag = (text: string) => ({
+  draggable: true,
+  onDragStart: (event: DragEvent<HTMLElement>) => {
+    event.dataTransfer.setData('text/plain', text);
+    event.dataTransfer.effectAllowed = 'copy';
+  },
+});
+
+/** Menú de una palabra de las herramientas: ponerla, o buscar con qué rima. */
+const wordMenu = (text: string, onInsert: (text: string) => void, onRhymes?: (word: string) => void) =>
+  contextMenu<HTMLElement>(
+    () => [
+      { label: 'Poner donde está el cursor', onSelect: () => onInsert(text) },
+      onRhymes && { label: `Rimas de «${lastWord(text)}»`, onSelect: () => onRhymes(lastWord(text)) },
+      { label: 'Copiar', onSelect: () => void navigator.clipboard?.writeText(text) },
+    ],
+    text,
+  );
 
 const rollConsigna = (risk: Parameters<typeof rollLyric>[0]['risk']) => {
   const rolled = rollLyric({ risk, rng: createRng(randomSeed()) });
@@ -211,7 +236,13 @@ function RhymePanel({
               <ul>
                 {group.words.map((word) => (
                   <li key={word}>
-                    <button type="button" onClick={() => onInsert(word)}>
+                    <button
+                      type="button"
+                      title="Tocala para ponerla donde está el cursor, o arrastrala hasta la letra"
+                      onClick={() => onInsert(word)}
+                      onContextMenu={wordMenu(word, onInsert, (next) => void search(next))}
+                      {...wordDrag(word)}
+                    >
                       {word}
                     </button>
                   </li>
@@ -222,8 +253,8 @@ function RhymePanel({
         </div>
       )}
       <p className={styles.hint}>
-        Tocá la letra de rima de un verso, o una palabra para ponerla donde está el cursor. Para una nota
-        larga, mejor una vocal abierta: a, e, o.
+        Tocá la letra de rima de un verso, o una palabra para ponerla donde está el cursor (o arrastrala hasta
+        donde va). Para una nota larga, mejor una vocal abierta: a, e, o.
       </p>
     </>
   );
@@ -340,7 +371,13 @@ function MaterialPanel({
   }, [seed, risk]);
 
   const chip = (text: string) => (
-    <button type="button" className={styles.chip} onClick={() => onInsert(text)}>
+    <button
+      type="button"
+      className={styles.chip}
+      onClick={() => onInsert(text)}
+      onContextMenu={wordMenu(text, onInsert)}
+      {...wordDrag(text)}
+    >
       {text}
     </button>
   );
@@ -430,7 +467,13 @@ function CutUpPanel({ text, onInsert }: { text: string; onInsert: (piece: string
       </Button>
       <div className={styles.pieces} data-testid="cutup-pieces">
         {pieces.map((piece, index) => (
-          <button key={`${piece}-${index}`} type="button" onClick={() => onInsert(piece)}>
+          <button
+            key={`${piece}-${index}`}
+            type="button"
+            onClick={() => onInsert(piece)}
+            onContextMenu={wordMenu(piece, onInsert)}
+            {...wordDrag(piece)}
+          >
             {piece}
           </button>
         ))}
@@ -498,6 +541,74 @@ export default function LetrasRoute() {
       element?.setSelectionRange(position, position);
     });
   };
+
+  /** Lo soltado queda separado por espacios de lo que tiene al lado. */
+  const spaceDropped = () => {
+    const element = area.current;
+    if (!element) return;
+    const { value, selectionStart: start, selectionEnd: end } = element;
+    if (start === end) return;
+    const before = start > 0 && !/\s/.test(value[start - 1]!) ? ' ' : '';
+    const after = end < value.length && !/[\s.,;:!?…)»]/.test(value[end]!) ? ' ' : '';
+    if (!before && !after) return;
+    const next = `${value.slice(0, start)}${before}${value.slice(start, end)}${after}${value.slice(end)}`;
+    updateSection(active, { text: next });
+    const position = end + before.length + after.length;
+    requestAnimationFrame(() => element.setSelectionRange(position, position));
+  };
+
+  /** Los versos se reordenan, se repiten o se borran desde el margen. */
+  const editRows = (next: string[]) => updateSection(active, { text: next.join('\n') });
+  const moveRow = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= rows.length) return;
+    const next = [...rows];
+    const [line] = next.splice(from, 1);
+    next.splice(to, 0, line!);
+    editRows(next);
+    setCaret(to);
+  };
+  const selectRow = (row: number) => {
+    const element = area.current;
+    if (!element) return;
+    const start = rows.slice(0, row).reduce((sum, line) => sum + line.length + 1, 0);
+    element.focus();
+    element.setSelectionRange(start, start + (rows[row]?.length ?? 0));
+    setCaret(row);
+  };
+  const rowMenu = (row: number) =>
+    contextMenu<HTMLElement>(
+      () => {
+        const word = lastWord(rows[row] ?? '');
+        return [
+          word && { label: `Rimas de «${word}»`, onSelect: () => searchLine(word) },
+          { label: 'Elegir el verso', onSelect: () => selectRow(row) },
+          null,
+          { label: '↑ Subir', disabled: row === 0, onSelect: () => moveRow(row, row - 1) },
+          { label: '↓ Bajar', disabled: row === rows.length - 1, onSelect: () => moveRow(row, row + 1) },
+          {
+            label: 'Repetirlo abajo',
+            onSelect: () => editRows([...rows.slice(0, row + 1), rows[row]!, ...rows.slice(row + 1)]),
+          },
+          {
+            label: clock.running ? 'Borrar (no con el reloj)' : 'Borrar el verso',
+            disabled: clock.running,
+            onSelect: () => editRows(rows.filter((_, i) => i !== row)),
+          },
+        ];
+      },
+      `Verso ${row + 1}`,
+    );
+  const dragRow = (row: number) =>
+    draggable<HTMLElement>(() =>
+      rows[row]?.trim()
+        ? {
+            group: 'letra-verso',
+            label: rows[row]!.trim(),
+            axis: 'y',
+            onDrop: (target, after) => moveRow(row, reorderTo(row, insertionIndex(target, after))),
+          }
+        : null,
+    );
 
   const searchLine = (word: string) => {
     setPanel('rimas');
@@ -618,7 +729,13 @@ export default function LetrasRoute() {
               <ol className={styles.gutter} aria-label="Sílabas y rima de cada verso">
                 {rows.map((_, row) => {
                   const line = byRow.get(row);
-                  if (!line) return <li key={row} data-current={row === caret} />;
+                  const handlers = {
+                    onContextMenu: rowMenu(row),
+                    onPointerDown: dragRow(row),
+                    onDoubleClick: () => selectRow(row),
+                    ...dropTarget('letra-verso', row),
+                  };
+                  if (!line) return <li key={row} data-current={row === caret} {...handlers} />;
                   const off = line.want !== null && line.count.total !== line.want;
                   const badRhyme = line.missesRow >= 0 || line.rhymesWhenBlank;
                   return (
@@ -628,6 +745,8 @@ export default function LetrasRoute() {
                       data-off={off}
                       data-current={row === caret}
                       data-forbidden={line.forbidden}
+                      title="Arrastralo para mover el verso · doble clic: elegirlo · clic derecho: más"
+                      {...handlers}
                     >
                       <span
                         className={styles.count}
@@ -662,6 +781,7 @@ export default function LetrasRoute() {
                 onSelect={trackCaret}
                 onKeyUp={trackCaret}
                 onClick={trackCaret}
+                onDrop={() => requestAnimationFrame(spaceDropped)}
                 onChange={(event) => {
                   // Con el reloj corriendo, el texto solo puede crecer.
                   if (clock.running && event.target.value.length < text.length) return;

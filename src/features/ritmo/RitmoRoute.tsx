@@ -297,9 +297,10 @@ export default function RitmoRoute() {
   const [undo, setUndo] = useState<RhythmConfig[]>([]);
 
   /** Lo que se cambia a mano acá también pasa a la consigna. */
-  const apply = (next: RhythmConfig) => {
+  /** `continuing` es el mismo gesto (pintar golpes arrastrando): "Volver" lo deshace entero. */
+  const apply = (next: RhythmConfig, continuing = false) => {
     metronome.setConfig(next);
-    publishToConsigna('ritmo', metronome.getState().config);
+    publishToConsigna('ritmo', metronome.getState().config, { continuing });
   };
   const applyRolled = (next: RhythmConfig) => {
     setUndo((stack) => [...stack, config].slice(-30));

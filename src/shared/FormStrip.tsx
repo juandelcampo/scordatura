@@ -13,6 +13,7 @@ import {
 import { song } from '~/audio/song';
 import type { SectionNames } from '~/data/structures';
 import { contextMenu, type MenuItem } from './ContextMenu';
+import { dropTarget, swallowNextClick } from './drag';
 import { useSong } from './song';
 import styles from './ui/formStrip.module.css';
 
@@ -33,6 +34,8 @@ interface FormStripProps {
   /** El clic derecho sobre un bloque, y el doble clic (oír desde ahí, en general). */
   menu?: (index: number) => MenuItem[];
   onDouble?: (index: number) => void;
+  /** Con esto, los bloques reciben lo que se suelta encima (ver shared/drag). */
+  dropGroup?: string;
 }
 
 /** Cuántos compases entran a lo ancho, con el mínimo que pide cada uno (--per-bar). */
@@ -106,6 +109,7 @@ export function FormStrip({
   onMove,
   menu,
   onDouble,
+  dropGroup,
 }: FormStripProps) {
   const host = useRef<HTMLOListElement>(null);
   const room = useRoom(host);
@@ -175,6 +179,7 @@ export function FormStrip({
                 data-block={index}
                 data-active={letter === active}
                 data-draggable={!!onMove}
+                {...(dropGroup ? dropTarget(dropGroup, index) : {})}
                 aria-pressed={index === selected}
                 aria-label={label}
                 onClick={() => onSelect(index)}
@@ -188,13 +193,15 @@ export function FormStrip({
                     : undefined
                 }
                 onPointerDown={(event) => {
-                  if (!onMove) return;
+                  if (!onMove || event.button !== 0) return;
                   dragging.current = index;
                   dragged.current = false;
                   event.currentTarget.setPointerCapture(event.pointerId);
                 }}
                 onPointerMove={onPointerMove}
                 onPointerUp={() => {
+                  // Al soltar llega un clic: no tiene que volver a elegir ni soltar el bloque.
+                  if (dragging.current !== null && dragged.current) swallowNextClick();
                   dragging.current = null;
                 }}
                 onPointerCancel={() => {

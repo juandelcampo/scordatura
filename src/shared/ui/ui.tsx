@@ -1,5 +1,5 @@
 // Componentes brutalistas compartidos. Son chicos a propósito: bloques, bordes y nada más.
-import type { ReactNode } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 import styles from './ui.module.css';
 
 interface SegmentedProps<T extends string> {
@@ -83,6 +83,8 @@ interface ButtonProps {
   ariaExpanded?: boolean;
   id?: string;
   disabled?: boolean;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
+  title?: string;
 }
 
 export function Button({
@@ -95,6 +97,8 @@ export function Button({
   ariaExpanded,
   id,
   disabled,
+  onPointerDown,
+  title,
 }: ButtonProps) {
   return (
     <button
@@ -103,6 +107,8 @@ export function Button({
       disabled={disabled}
       className={`${styles[variant]} ${full ? styles.full : ''}`}
       onClick={onClick}
+      onPointerDown={onPointerDown}
+      title={title}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
       aria-expanded={ariaExpanded}

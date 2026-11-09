@@ -25,6 +25,7 @@ import {
   useForm,
   type ConsignaForm,
 } from '~/shared/consigna';
+import { draggable, insertionIndex } from '~/shared/drag';
 import { FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { isValidBlocks, letterList, useProject } from '~/shared/project';
 import { RecordButton } from '~/shared/RecordButton';
@@ -75,12 +76,25 @@ function Timeline({ selected, onSelect }: { selected: number; onSelect: (index: 
     editBlocks(next, { continuing });
     onSelect(to);
   };
-  const add = (letter: string) => {
+  const add = (letter: string, at = blocks.length) => {
     if (blocks.length >= MAX_BLOCKS) return;
-    editBlocks([...blocks, letter]);
-    onSelect(blocks.length);
+    const next = [...blocks];
+    next.splice(at, 0, letter);
+    editBlocks(next);
+    onSelect(at);
     setActive(letter);
   };
+  /** Un "+ A" se puede llevar hasta el lugar de la tira donde va. */
+  const dragAdd = (letter: string) =>
+    draggable<HTMLButtonElement>(() =>
+      blocks.length >= MAX_BLOCKS
+        ? null
+        : {
+            group: 'forma-bloque',
+            label: `+ ${letter}`,
+            onDrop: (target, after) => add(letter, insertionIndex(target, after)),
+          },
+    );
 
   return (
     <section className={styles.song} aria-label="La forma">
@@ -107,6 +121,7 @@ function Timeline({ selected, onSelect }: { selected: number; onSelect: (index: 
         active={active}
         onSelect={select}
         onMove={move}
+        dropGroup="forma-bloque"
         onDouble={(index) => {
           select(index);
           player.playFrom(index);
@@ -172,16 +187,26 @@ function Timeline({ selected, onSelect }: { selected: number; onSelect: (index: 
             variant="mini"
             ariaLabel={`Agregar sección ${letter}`}
             onClick={() => add(letter)}
+            onPointerDown={dragAdd(letter)}
+            title="Tocalo para sumarlo al final, o arrastralo hasta donde va"
           >
             + {letter}
           </Button>
         ))}
         {fresh && (
-          <Button variant="mini" ariaLabel={`Agregar sección ${fresh}`} onClick={() => add(fresh)}>
+          <Button
+            variant="mini"
+            ariaLabel={`Agregar sección ${fresh}`}
+            onClick={() => add(fresh)}
+            onPointerDown={dragAdd(fresh)}
+            title="Tocalo para sumarlo al final, o arrastralo hasta donde va"
+          >
             + {fresh} nueva
           </Button>
         )}
-        <span className={styles.hint}>Arrastrá los bloques para ordenarlos.</span>
+        <span className={styles.hint}>
+          Arrastrá los bloques para ordenarlos, y los + hasta donde van. Clic derecho: más.
+        </span>
       </div>
     </section>
   );

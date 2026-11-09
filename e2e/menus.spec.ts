@@ -112,7 +112,9 @@ test.describe('clic derecho y doble clic', () => {
     const bars = form.getByRole('group', { name: /los compases de/ }).locator('output');
     const before = await bars.textContent();
     await block.click({ button: 'right' });
-    await menu(page).getByRole('menuitem', { name: /Un compás más/ }).click();
+    await menu(page)
+      .getByRole('menuitem', { name: /Un compás más/ })
+      .click();
     await expect(bars).not.toHaveText(before!);
     await block.click({ button: 'right' });
     await menu(page).getByRole('menuitem', { name: '■ Parar' }).click();
@@ -131,7 +133,9 @@ test.describe('clic derecho y doble clic', () => {
     const blocks = strip.getByRole('button');
     const count = await blocks.count();
     await blocks.first().click({ button: 'right' });
-    await menu(page).getByRole('menuitem', { name: /^Repetir/ }).click();
+    await menu(page)
+      .getByRole('menuitem', { name: /^Repetir/ })
+      .click();
     await expect(blocks).toHaveCount(count + 1);
     await blocks.first().click({ button: 'right' });
     await menu(page).getByRole('menuitem', { name: 'Quitar el bloque' }).click();

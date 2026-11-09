@@ -17,8 +17,9 @@ import { createRng } from '~/core/rng';
 import { diatonicChords, MAX_CHORDS, MIN_CHORDS, spellInKey, type Key } from '~/core/variations';
 import { DEFAULT_BARS, MAX_BARS } from '~/core/song';
 import { metricCount, wordsIn } from '~/core/spanish';
-import { useForm } from '~/shared/consigna';
+import { editBlocks, useForm } from '~/shared/consigna';
 import { contextMenu } from '~/shared/ContextMenu';
+import { draggable, dropTarget, insertionIndex, reorderTo } from '~/shared/drag';
 import { FormLegend, FormStrip, useSongPlayer } from '~/shared/FormStrip';
 import { PianoRoll } from '~/shared/PianoRoll';
 import { useProject } from '~/shared/project';
@@ -369,7 +370,7 @@ export function MiniHarmony({
   onMode?: (mode: ModeId) => void;
   locks?: readonly boolean[];
   onLock?: (index: number) => void;
-  onAdd?: (chord: string) => void;
+  onAdd?: (chord: string, at?: number) => void;
   onRemove?: (index: number) => void;
   onMove?: (index: number, to: number) => void;
 }) {
@@ -398,6 +399,28 @@ export function MiniHarmony({
   const frets = (shape: ReturnType<typeof shapeOf>) =>
     shape.voicing ? shape.voicing.frets.map((fret) => fret ?? 'x').join(' ') : 'sin digitación';
   const canAdd = !!onAdd && chords.length < MAX_CHORDS;
+  // Los acordes se ordenan arrastrándolos, y los de afuera entran donde se los suelta.
+  const DROP = 'consigna-acorde';
+  const dragChord = (index: number) =>
+    draggable<HTMLElement>(() =>
+      onMove
+        ? {
+            group: DROP,
+            label: chords[index]!,
+            onDrop: (target, after) => onMove(index, reorderTo(index, insertionIndex(target, after))),
+          }
+        : null,
+    );
+  const dragSpare = (name: string) =>
+    draggable<HTMLElement>(() =>
+      canAdd
+        ? {
+            group: DROP,
+            label: `+ ${name}`,
+            onDrop: (target, after) => onAdd(name, insertionIndex(target, after)),
+          }
+        : null,
+    );
   /** Un acorde de la progresión: oírlo, trabarlo, moverlo o sacarlo. */
   const chordMenu = (shape: ReturnType<typeof shapeOf>, index: number) =>
     contextMenu(
@@ -485,6 +508,7 @@ export function MiniHarmony({
                     title={canAdd ? `${frets(shape)} · doble clic: sumarlo` : frets(shape)}
                     onClick={() => hit(shape.midis)}
                     onDoubleClick={() => canAdd && onAdd(name)}
+                    onPointerDown={dragSpare(name)}
                     onContextMenu={contextMenu(
                       () => [
                         { label: `▶ Oír ${name}`, onSelect: () => hit(shape.midis) },
@@ -539,12 +563,18 @@ export function MiniHarmony({
               className={styles.chord}
               data-locked={onLock ? Boolean(locks?.[index]) : undefined}
               onContextMenu={chordMenu(shape, index)}
+              onPointerDown={dragChord(index)}
+              {...dropTarget(DROP, index)}
             >
               <button
                 type="button"
                 className={styles.chordPlay}
                 aria-label={`Oír ${shape.name}`}
-                title={onLock ? 'Doble clic: trabarlo · clic derecho: más' : undefined}
+                title={
+                  onLock
+                    ? 'Arrastralo para moverlo · doble clic: trabarlo · clic derecho: más'
+                    : 'Arrastralo para moverlo · clic derecho: más'
+                }
                 onClick={() => hit(shape.midis)}
                 onDoubleClick={() => onLock?.(index)}
               >
@@ -740,6 +770,13 @@ export function MiniForm({
         selected={selected ?? undefined}
         active={letter}
         onSelect={onSelect}
+        onMove={(from, to, continuing) => {
+          const next = [...blocks];
+          const [item] = next.splice(from, 1);
+          next.splice(to, 0, item!);
+          editBlocks(next, { continuing });
+          onSelect(to, true);
+        }}
         onDouble={(index) => {
           onSelect(index, true);
           player.playFrom(index);

@@ -223,21 +223,28 @@ export function ConsignaView({ background = false }: { background?: boolean }) {
     });
   };
 
-  /** Un grado que había quedado afuera entra al final de la progresión. */
-  const addChord = (name: string) => {
+  /** Un grado que había quedado afuera entra al final de la progresión, o donde se lo suelte. */
+  const addChord = (name: string, at?: number) => {
+    const put = <T,>(list: readonly T[], item: T) => {
+      const next = [...list];
+      next.splice(at ?? list.length, 0, item);
+      return next;
+    };
     if (letter && ownChords) {
       updateSection(letter, {
-        chords: [...ownChords, name],
-        ...(section?.chordBeats ? { chordBeats: [...section.chordBeats, DEFAULT_CHORD_BEATS] } : {}),
+        chords: put(ownChords, name),
+        ...(section?.chordBeats ? { chordBeats: put(section.chordBeats, DEFAULT_CHORD_BEATS) } : {}),
       });
       return;
     }
     publishToConsigna('armonia', {
-      chords: [...base.chords, name],
+      chords: put(base.chords, name),
       tonic: baseKey.tonic,
       mode: baseKey.mode,
-      ...(base.beats ? { beats: [...base.beats, DEFAULT_CHORD_BEATS] } : {}),
+      ...(base.beats ? { beats: put(base.beats, DEFAULT_CHORD_BEATS) } : {}),
     });
+    // Los candados quedan con su acorde: el nuevo entra destrabado.
+    if (at !== undefined) setChordLocks(put(locks, false));
   };
 
   /**

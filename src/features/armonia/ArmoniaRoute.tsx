@@ -42,6 +42,8 @@ import { useProject } from '~/shared/project';
 import { SectionPicker } from '~/shared/SectionPicker';
 import { useSettings } from '~/shared/settings';
 import { useSong } from '~/shared/song';
+import { contextMenu } from '~/shared/ContextMenu';
+import { draggable, dropTarget, insertionIndex, reorderTo } from '~/shared/drag';
 import { useHydrated } from '~/shared/useHydrated';
 import { Button, PageTitle, Slab, SlabHead, Stepper, Tabs } from '~/shared/ui/ui';
 import styles from './armonia.module.css';
@@ -276,8 +278,8 @@ export default function ArmoniaRoute() {
     audition(chords[index]!);
   };
 
-  const addChord = (name: string) => {
-    const at = chosen === null ? chords.length : chosen + 1;
+  const addChord = (name: string, place?: number) => {
+    const at = place ?? (chosen === null ? chords.length : chosen + 1);
     // Entra con la duración del acorde que tiene al lado: en una vuelta de a 2, sigue siendo de a 2.
     const next = insertAt(slots, at, [{ name, locked: false, beats: beats[at - 1] ?? DEFAULT_CHORD_BEATS }]);
     const names = next.map((slot) => slot.name);
@@ -285,7 +287,7 @@ export default function ArmoniaRoute() {
       next,
       `Sumaste ${name}: en ${keyName(chordKey)} queda como ${roleOf(names, at, chordKey).toLowerCase()}.`,
     );
-    if (chosen !== null) setSelected(at);
+    if (chosen !== null || place !== undefined) setSelected(at);
     audition(name);
   };
 
@@ -297,12 +299,72 @@ export default function ArmoniaRoute() {
   };
 
   const moveChord = (index: number, to: number) => {
+    if (to === index || to < 0 || to >= chords.length) return;
     const name = chords[index]!;
     commit(moveItem(slots, index, to), `Moviste ${name}: mismos acordes, otro recorrido.`);
     if (chosen === null) return;
+    // El elegido sigue siendo el mismo acorde, esté donde esté ahora.
     if (chosen === index) setSelected(to);
-    else if (chosen === to) setSelected(index);
+    else if (index < chosen && to >= chosen) setSelected(chosen - 1);
+    else if (index > chosen && to <= chosen) setSelected(chosen + 1);
   };
+
+  const duplicateChord = (index: number) => {
+    const name = chords[index]!;
+    commit(
+      insertAt(slots, index + 1, [{ ...slots[index]!, locked: false }]),
+      `${name} dos veces: el mismo acorde dura el doble, o vuelve a empezar.`,
+    );
+    if (chosen !== null && chosen > index) setSelected(chosen + 1);
+  };
+
+  const toggleLock = (index: number) =>
+    setLocked(chords.map((_, i) => (i === index ? !locked[i] : Boolean(locked[i]))));
+
+  /** Soltar un acorde de la progresión lo mueve; uno de la paleta entra ahí. */
+  const CHORD_DROP = 'armonia-acorde';
+  const dragChord = (index: number) =>
+    draggable<HTMLElement>({
+      group: CHORD_DROP,
+      label: chords[index]!,
+      onDrop: (target, after) => moveChord(index, reorderTo(index, insertionIndex(target, after))),
+    });
+  const dragNew = (name: string) =>
+    draggable<HTMLElement>(() =>
+      atMost
+        ? null
+        : {
+            group: CHORD_DROP,
+            label: `+ ${name}`,
+            onDrop: (target, after) => addChord(name, insertionIndex(target, after)),
+          },
+    );
+
+  const chordMenu = (index: number) =>
+    contextMenu<HTMLElement>(() => {
+      const name = chords[index]!;
+      return [
+        { label: `▶ Oír ${name}`, onSelect: () => strum(midisOfName(name, voicings[index]), a4) },
+        { label: `Variar ${name}`, onSelect: () => selectChord(index) },
+        null,
+        { label: 'Trabado', checked: Boolean(locked[index]), onSelect: () => toggleLock(index) },
+        { label: '← Antes', disabled: index === 0, onSelect: () => moveChord(index, index - 1) },
+        {
+          label: 'Después →',
+          disabled: index === chords.length - 1,
+          onSelect: () => moveChord(index, index + 1),
+        },
+        {
+          label: `Un tiempo más (${beats[index]} t)`,
+          disabled: beats[index]! >= MAX_CHORD_BEATS,
+          onSelect: () => changeBeats(index, 1),
+        },
+        { label: 'Un tiempo menos', disabled: beats[index] === 1, onSelect: () => changeBeats(index, -1) },
+        null,
+        { label: 'Repetirlo al lado', disabled: atMost, onSelect: () => duplicateChord(index) },
+        { label: `✕ Sacar ${name}`, disabled: atLeast, onSelect: () => removeChord(index) },
+      ];
+    }, `${degrees[index]} ${chords[index]}`);
 
   const changeBeats = (index: number, delta: number) => {
     const name = chords[index]!;
@@ -543,6 +605,9 @@ export default function ArmoniaRoute() {
                   data-playing={current === index}
                   data-selected={chosen === index}
                   onClick={() => selectChord(index)}
+                  onPointerDown={dragChord(index)}
+                  onContextMenu={chordMenu(index)}
+                  {...dropTarget(CHORD_DROP, index)}
                 >
                   {name}
                 </span>
@@ -565,6 +630,10 @@ export default function ArmoniaRoute() {
                   data-selected={chosen === index}
                   data-playing={current === index}
                   data-testid="chord"
+                  title="Arrastralo para moverlo · doble clic: trabarlo · clic derecho: más"
+                  onPointerDown={dragChord(index)}
+                  onContextMenu={chordMenu(index)}
+                  {...dropTarget(CHORD_DROP, index)}
                 >
                   <div className={styles.chordHead}>
                     <span className={styles.degree} data-testid="degree">
@@ -575,9 +644,7 @@ export default function ArmoniaRoute() {
                         variant="mini"
                         ariaPressed={isLocked}
                         ariaLabel={`${isLocked ? 'Destrabar' : 'Trabar'} ${name}`}
-                        onClick={() =>
-                          setLocked(chords.map((_, i) => (i === index ? !isLocked : Boolean(locked[i]))))
-                        }
+                        onClick={() => toggleLock(index)}
                       >
                         <LockIcon closed={isLocked} />
                       </Button>
@@ -590,6 +657,7 @@ export default function ArmoniaRoute() {
                       aria-label={`Elegir ${name}`}
                       aria-pressed={chosen === index}
                       onClick={() => selectChord(index)}
+                      onDoubleClick={() => toggleLock(index)}
                     >
                       {name}
                     </button>
@@ -609,7 +677,7 @@ export default function ArmoniaRoute() {
               );
             })}
             {!atMost && (
-              <li className={styles.addSlot}>
+              <li className={styles.addSlot} {...dropTarget(CHORD_DROP, chords.length)}>
                 <button
                   type="button"
                   data-testid="add-chord"
@@ -665,6 +733,7 @@ export default function ArmoniaRoute() {
                   afterName={chosen === null ? null : chords[chosen]!}
                   onAdd={addChord}
                   onAddAtEnd={() => setSelected(null)}
+                  dragNew={dragNew}
                 />
               )}
               {shownTab === 'acorde' && chosen !== null && (

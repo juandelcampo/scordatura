@@ -327,7 +327,18 @@ function MotifTab() {
       </SlabHead>
       {picker}
       <h3 className={styles.subtitle}>Original</h3>
-      <PianoRoll notes={motif} label="Motivo original" />
+      <PianoRoll
+        notes={motif}
+        label="Motivo original"
+        onNoteChange={(index, midi) =>
+          setMotif((current) => current.map((note, i) => (i === index ? { ...note, midi } : note)))
+        }
+        onAudition={(midi) => {
+          stopInstrument();
+          playMelody([{ midi, start: 0 }], BPM, a4);
+        }}
+      />
+      <p className={styles.hint}>Arrastrá una nota para subirla o bajarla: la variación la sigue.</p>
       <NoteNames notes={motif} />
       <div className={styles.chips}>
         {ids.map((id) => (

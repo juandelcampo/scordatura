@@ -19,8 +19,8 @@ export interface MenuAction {
   /** Para los que se prenden y apagan, como "Trabar". */
   checked?: boolean;
 }
-/** `null` es una raya entre grupos; `false` y `undefined` se saltean, para armar la lista con `&&`. */
-export type MenuItem = MenuAction | null | false | undefined;
+/** `null` es una raya entre grupos; `false`, `''` y `undefined` se saltean, para armar la lista con `&&`. */
+export type MenuItem = MenuAction | null | false | '' | undefined;
 
 interface MenuState {
   open: { x: number; y: number; title?: string; items: (MenuAction | null)[] } | null;
@@ -32,7 +32,7 @@ interface MenuState {
 function tidy(items: MenuItem[]): (MenuAction | null)[] {
   const out: (MenuAction | null)[] = [];
   for (const item of items) {
-    if (item === false || item === undefined) continue;
+    if (item === false || item === undefined || item === '') continue;
     if (item === null && (out.length === 0 || out[out.length - 1] === null)) continue;
     out.push(item);
   }
@@ -130,13 +130,13 @@ export function ContextMenuHost() {
     window.addEventListener('pointerdown', away, true);
     window.addEventListener('keydown', key, true);
     window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', close);
     window.addEventListener('blur', close);
     return () => {
       window.removeEventListener('pointerdown', away, true);
       window.removeEventListener('keydown', key, true);
       window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', close);
       window.removeEventListener('blur', close);
     };
   }, [open, close]);

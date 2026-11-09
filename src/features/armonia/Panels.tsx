@@ -1,5 +1,5 @@
 // Los paneles que editan la progresión. No guardan nada: muestran opciones y avisan qué se eligió.
-import { useState } from 'react';
+import { useState, type PointerEvent } from 'react';
 import { degreeOf, MAX_CHORD_BEATS, parseChord } from '~/core/chords';
 import { MODES, type ModeId } from '~/core/harmony';
 import {
@@ -57,9 +57,12 @@ export function AddPanel({
   afterName,
   onAdd,
   onAddAtEnd,
+  dragNew,
 }: {
   chordKey: Key;
   count: number;
+  /** Para llevar un acorde de la paleta a un lugar de la progresión. */
+  dragNew?: (name: string) => (event: PointerEvent<HTMLButtonElement>) => void;
   /** El acorde después del cual entra lo nuevo; sin él, va al final. */
   afterName: string | null;
   onAdd: (name: string) => void;
@@ -92,7 +95,9 @@ export function AddPanel({
             disabled={full}
             aria-label={`Sumar ${chord.name}`}
             data-testid="palette-chord"
+            title="Tocalo para sumarlo, o arrastralo hasta donde va"
             onClick={() => onAdd(chord.name)}
+            onPointerDown={dragNew?.(chord.name)}
           >
             <small>{degreeOf(chord.name, chordKey.tonic)}</small>
             <strong>{chord.name}</strong>
